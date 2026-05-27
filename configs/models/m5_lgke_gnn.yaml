@@ -1,0 +1,15 @@
+type: graph_multimodal
+backend: torch_geometric
+class_name: PlaceholderGraphMultimodalModel
+params:
+  image_encoder: frozen_or_joint
+  metadata_encoder: mlp
+  graph_encoder: graphsage_or_gatv2
+  edge_types:
+    - same_patient
+    - has_attribute
+    - visual_knn
+    - metadata_knn
+  knowledge_prototypes: 64
+  graph_smoothing_lambda: 0.01
+

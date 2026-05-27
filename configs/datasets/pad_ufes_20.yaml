@@ -1,0 +1,30 @@
+name: pad_ufes_20
+source: PAD-UFES-20
+task: external_binary_validation
+paths:
+  image_dir: data/raw/pad_ufes_20/images
+  metadata_csv: data/raw/pad_ufes_20/metadata.csv
+  manifest_csv: data/processed/manifest_pad.csv
+schema:
+  id_columns:
+    sample_id: sample_id
+    patient_id: patient_id
+    lesion_id: lesion_id
+  target_column: target
+  image_path_column: image_path
+label_mapping:
+  positive:
+    - BCC
+    - MEL
+    - SCC
+    - BOD
+  negative:
+    - ACK
+    - NEV
+    - SEK
+fairness_columns:
+  - sex
+  - age_bin
+  - anatom_site
+  - fitzpatrick
+

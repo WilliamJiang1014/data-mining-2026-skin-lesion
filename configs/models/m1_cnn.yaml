@@ -1,0 +1,9 @@
+type: image
+backend: torch
+class_name: PlaceholderImageModel
+params:
+  encoder: efficientnet_b0
+  image_size: 224
+  pretrained: true
+  loss: weighted_bce
+

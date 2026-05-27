@@ -1,0 +1,39 @@
+experiment_name: patient_level_baselines
+dataset: configs/datasets/isic2024.yaml
+external_dataset: configs/datasets/pad_ufes_20.yaml
+seed: 2026
+folds: 5
+threshold_rules:
+  - youden
+  - sensitivity_at_least_0_90
+primary_metric: partial_auc_high_sensitivity
+report_metrics:
+  - auroc
+  - auprc
+  - partial_auc_high_sensitivity
+  - sensitivity
+  - specificity
+  - f1
+  - brier
+  - ece
+  - subgroup_gap
+models:
+  - name: m0_tabular_baseline
+    type: tabular
+    config: configs/models/m0_tabular.yaml
+  - name: m1_cnn_baseline
+    type: image
+    config: configs/models/m1_cnn.yaml
+  - name: m2_monet_feature_baseline
+    type: monet_feature
+    config: configs/models/m2_monet_feature.yaml
+  - name: m3_transformer_baseline
+    type: image_transformer
+    config: configs/models/m3_transformer.yaml
+  - name: m4_multimodal_fusion
+    type: multimodal
+    config: configs/models/m4_multimodal.yaml
+  - name: m5_lgke_gnn
+    type: graph_multimodal
+    config: configs/models/m5_lgke_gnn.yaml
+

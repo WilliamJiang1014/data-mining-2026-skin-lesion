@@ -1,0 +1,9 @@
+type: image_transformer
+backend: torch
+class_name: PlaceholderImageModel
+params:
+  encoder: swin_tiny_or_vit_base
+  image_size: 384
+  pretrained: true
+  loss: focal
+

@@ -1,0 +1,9 @@
+type: tabular
+backend: sklearn
+class_name: PlaceholderTabularModel
+params:
+  numeric_imputer: median
+  categorical_unknown_token: UNK
+  rare_category_min_count: 20
+  class_weight: balanced
+

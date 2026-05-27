@@ -1,0 +1,8 @@
+type: monet_feature
+backend: torch
+class_name: PlaceholderMonetFeatureModel
+params:
+  feature_source: monet_or_compatible_vlm
+  freeze_encoder: true
+  classifier: mlp
+

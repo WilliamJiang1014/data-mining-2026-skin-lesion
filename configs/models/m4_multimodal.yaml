@@ -1,0 +1,9 @@
+type: multimodal
+backend: torch
+class_name: PlaceholderMultimodalModel
+params:
+  image_encoder: convnext_tiny
+  metadata_encoder: mlp
+  fusion: gated
+  loss: weighted_bce
+

@@ -1,0 +1,23 @@
+[project]
+name = "skin-lesion-risk"
+version = "0.1.0"
+description = "Reproducible multimodal skin lesion risk screening experiments for ISIC 2024 SLICE-3D and PAD-UFES-20."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.23",
+  "pandas>=1.5",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+ml = [
+  "scikit-learn>=1.2",
+]
+dev = [
+  "pytest>=7.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+

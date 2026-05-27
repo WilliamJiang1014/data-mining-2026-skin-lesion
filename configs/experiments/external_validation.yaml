@@ -1,0 +1,13 @@
+experiment_name: pad_ufes_20_external_validation
+train_dataset: configs/datasets/isic2024.yaml
+external_dataset: configs/datasets/pad_ufes_20.yaml
+seed: 2026
+threshold_source: internal_validation
+allow_external_threshold_refit: false
+models_from: configs/experiments/baselines.yaml
+fairness_groups:
+  - sex
+  - age_bin
+  - anatom_site
+  - fitzpatrick
+

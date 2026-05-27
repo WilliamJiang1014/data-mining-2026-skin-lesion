@@ -1,0 +1,42 @@
+name: isic2024_slice3d_permissive
+source: ISIC 2024 SLICE-3D Permissive
+task: binary_malignancy
+paths:
+  image_dir: data/raw/isic2024_permissive/images
+  metadata_csv: data/raw/isic2024_permissive/metadata.csv
+  supplemental_metadata_csv: data/raw/isic2024_permissive/supplemental_metadata.csv
+  labels_csv: data/raw/isic2024_permissive/labels.csv
+  manifest_csv: data/processed/manifest_isic.csv
+  folds_csv: data/processed/folds_isic.csv
+schema:
+  id_columns:
+    sample_id: sample_id
+    patient_id: patient_id
+    lesion_id: lesion_id
+  target_column: target
+  image_path_column: image_path
+  required_manifest_columns:
+    - sample_id
+    - image_path
+    - target
+    - patient_id
+    - lesion_id
+    - age
+    - sex
+    - anatom_site
+    - size_mm
+    - source
+    - fold
+leakage_policy:
+  never_as_tabular_features:
+    - patient_id
+    - lesion_id
+    - image_id
+    - sample_id
+  drop_if_present_patterns:
+    - diagnosis
+    - histopathology
+    - biopsy
+    - malign
+    - target
+

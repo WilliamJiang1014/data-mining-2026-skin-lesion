@@ -1,0 +1,21 @@
+experiment_name: lgke_gnn_graph_ablation
+base_experiment: configs/experiments/baselines.yaml
+target_model: m5_lgke_gnn
+seed: 2026
+ablations:
+  - name: no_same_patient_edges
+    disabled_edge_types: [same_patient]
+  - name: no_attribute_edges
+    disabled_edge_types: [has_attribute]
+  - name: no_visual_knn_edges
+    disabled_edge_types: [visual_knn]
+  - name: no_metadata_knn_edges
+    disabled_edge_types: [metadata_knn]
+  - name: lesion_only_no_graph
+    disabled_edge_types: [same_patient, has_attribute, visual_knn, metadata_knn]
+metrics:
+  - partial_auc_high_sensitivity
+  - auprc
+  - sensitivity
+  - specificity
+

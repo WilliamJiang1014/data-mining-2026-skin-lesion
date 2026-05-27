@@ -1,0 +1,2 @@
+"""Interactive demo package placeholder."""
+

@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Data and generated artifacts
+data/raw/**
+data/interim/**
+data/processed/**
+data/external/**
+data/artifacts/**
+reports/figures/**
+reports/tables/**
+
+# Keep directory placeholders
+!data/raw/**/
+!data/interim/
+!data/processed/
+!data/external/
+!data/artifacts/
+!reports/figures/
+!reports/tables/
+!**/.gitkeep
+!data/**/README.md
+
+# OS / notebooks
+.DS_Store
+.ipynb_checkpoints/
