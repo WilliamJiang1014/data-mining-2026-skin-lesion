@@ -5,7 +5,7 @@ from typing import Any
 
 import yaml
 
-from skin_lesion_risk.models.adapters.graph import PlaceholderGraphMultimodalModel
+from skin_lesion_risk.models.adapters.graph import LGKEGNNModelAdapter
 from skin_lesion_risk.models.adapters.image import PlaceholderImageModel
 from skin_lesion_risk.models.adapters.monet import PlaceholderMonetFeatureModel
 from skin_lesion_risk.models.adapters.multimodal import PlaceholderMultimodalModel
@@ -49,6 +49,5 @@ def default_registry() -> ModelRegistry:
     registry.register("image_transformer", PlaceholderImageModel)
     registry.register("monet_feature", PlaceholderMonetFeatureModel)
     registry.register("multimodal", PlaceholderMultimodalModel)
-    registry.register("graph_multimodal", PlaceholderGraphMultimodalModel)
+    registry.register("graph_multimodal", LGKEGNNModelAdapter)
     return registry
-
