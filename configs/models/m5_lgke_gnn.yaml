@@ -1,15 +1,28 @@
 type: graph_multimodal
-backend: torch_geometric
-class_name: PlaceholderGraphMultimodalModel
+backend: torch_native
+class_name: LGKEGNNModelAdapter
 params:
-  image_encoder: frozen_or_joint
-  metadata_encoder: mlp
-  graph_encoder: graphsage_or_gatv2
+  image_encoder: offline_color_stats_or_cluster_feature
+  metadata_encoder: fold_tabular_preprocessor
+  graph_encoder: native_relation_graphsage
   edge_types:
     - same_patient
     - has_attribute
     - visual_knn
     - metadata_knn
-  knowledge_prototypes: 64
-  graph_smoothing_lambda: 0.01
-
+    - visual_prototype
+    - metadata_prototype
+  hidden_dim: 64
+  num_layers: 1
+  prototype_count: 128
+  k_visual: 10
+  k_metadata: 10
+  dropout: 0.2
+  edge_chunk_size: 250000
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  epochs: 50
+  patience: 8
+  loss: weighted_bce
+  early_stopping_metric: pauc_tpr80
+  lambda_smooth: 0.0
