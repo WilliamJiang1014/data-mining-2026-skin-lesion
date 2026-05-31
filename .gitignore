@@ -31,3 +31,6 @@ reports/tables/**
 # OS / notebooks
 .DS_Store
 .ipynb_checkpoints/
+
+# Logs
+log/

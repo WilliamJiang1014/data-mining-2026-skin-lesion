@@ -4,7 +4,7 @@
 
 # M1 CNN (EfficientNet-B0)
 m1_cnn_baseline:
-  batch_size: 192
+  batch_size: 256
   epochs: 12
   patience: 4
   learning_rate: 1.0e-4
@@ -15,7 +15,7 @@ m1_cnn_baseline:
 
 # M2 MONET Feature (frozen EfficientNet-B0 + MLP)
 m2_monet_feature_baseline:
-  batch_size: 384
+  batch_size: 768
   epochs: 12
   patience: 4
   learning_rate: 1.0e-3
@@ -26,7 +26,7 @@ m2_monet_feature_baseline:
 
 # M3 Transformer (Swin-Tiny)
 m3_transformer_baseline:
-  batch_size: 64
+  batch_size: 128
   epochs: 10
   patience: 3
   learning_rate: 5.0e-5
@@ -38,7 +38,7 @@ m3_transformer_baseline:
 
 # M4 Multimodal Fusion (ConvNeXt-Tiny + MLP + Gated)
 m4_multimodal_fusion:
-  batch_size: 128
+  batch_size: 192
   epochs: 12
   patience: 4
   learning_rate: 1.0e-4
