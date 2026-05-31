@@ -1,9 +1,17 @@
 type: image_transformer
 backend: torch
-class_name: PlaceholderImageModel
+class_name: TransformerImageModel
 params:
-  encoder: swin_tiny_or_vit_base
-  image_size: 384
+  encoder: swin_tiny_patch4_window7_224
+  image_size: 224
   pretrained: true
   loss: focal
-
+  focal_alpha: 0.25
+  focal_gamma: 2.0
+  epochs: 15
+  patience: 4
+  learning_rate: 5.0e-5
+  weight_decay: 0.05
+  batch_size: 16
+  dropout: 0.3
+  seed: 2026

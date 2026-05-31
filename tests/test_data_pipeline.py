@@ -6,6 +6,7 @@ import pandas as pd
 from skin_lesion_risk.data.preprocessing import default_preprocessor_for
 from skin_lesion_risk.data.splits import make_patient_level_folds
 from skin_lesion_risk.evaluation.metrics import partial_auc_high_sensitivity
+from skin_lesion_risk.features.text_prompts import build_prompts, metadata_to_prompt
 
 
 def test_patient_folds_do_not_overlap_groups() -> None:
@@ -54,3 +55,14 @@ def test_preprocessor_fits_train_schema_and_transforms_unknown_categories() -> N
 def test_partial_auc_high_sensitivity_is_bounded() -> None:
     value = partial_auc_high_sensitivity([0, 0, 1, 1], [0.1, 0.3, 0.8, 0.9], min_tpr=0.8)
     assert 0.0 <= value <= 1.0
+
+
+def test_metadata_prompts_include_clinical_context() -> None:
+    row = {"age": 67, "sex": "female", "anatom_site": "head_neck", "size_mm": 4.2, "tbp_lv_norm_border": 0.7}
+    prompt = metadata_to_prompt(row)
+    assert "age approximately 67" in prompt
+    assert "head neck" in prompt
+    assert "4.2 mm" in prompt
+
+    prompts = build_prompts(pd.DataFrame([row]))
+    assert prompts == [prompt]

@@ -27,6 +27,7 @@ class ModelBatch:
     image_paths: list[str | Path] | None = None
     images: ArrayLike | None = None
     metadata: TableLike | None = None
+    raw_metadata: TableLike | None = None
     graph: Any | None = None
     groups: dict[str, list[Any]] = field(default_factory=dict)
     fold: int | None = None

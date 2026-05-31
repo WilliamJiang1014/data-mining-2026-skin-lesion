@@ -18,9 +18,15 @@ report_metrics:
   - ece
   - subgroup_gap
 models:
+  - name: m0_constant
+    type: constant
+    config: configs/models/m0_constant.yaml
   - name: m0_tabular_baseline
     type: tabular
     config: configs/models/m0_tabular.yaml
+  - name: m0_lightgbm
+    type: tabular_lgbm
+    config: configs/models/m0_lightgbm.yaml
   - name: m1_cnn_baseline
     type: image
     config: configs/models/m1_cnn.yaml

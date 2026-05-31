@@ -1,9 +1,15 @@
 type: image
 backend: torch
-class_name: PlaceholderImageModel
+class_name: CNNImageModel
 params:
   encoder: efficientnet_b0
   image_size: 224
   pretrained: true
   loss: weighted_bce
-
+  epochs: 20
+  patience: 5
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-4
+  batch_size: 32
+  dropout: 0.3
+  seed: 2026

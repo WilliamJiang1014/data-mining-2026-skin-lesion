@@ -1,0 +1,48 @@
+# 统一训练超参数配置
+# 修改此文件即可调整所有模型的训练参数，无需逐个改模型配置。
+# 命令行参数（--epochs, --batch-size 等）会覆盖这里的值。
+
+# M1 CNN (EfficientNet-B0)
+m1_cnn_baseline:
+  batch_size: 192
+  epochs: 12
+  patience: 4
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-4
+  dropout: 0.3
+  num_workers: 8
+  prefetch_factor: 4
+
+# M2 MONET Feature (frozen EfficientNet-B0 + MLP)
+m2_monet_feature_baseline:
+  batch_size: 384
+  epochs: 12
+  patience: 4
+  learning_rate: 1.0e-3
+  weight_decay: 1.0e-4
+  dropout: 0.3
+  num_workers: 8
+  prefetch_factor: 4
+
+# M3 Transformer (Swin-Tiny)
+m3_transformer_baseline:
+  batch_size: 64
+  epochs: 10
+  patience: 3
+  learning_rate: 5.0e-5
+  weight_decay: 0.05
+  dropout: 0.3
+  num_workers: 8
+  prefetch_factor: 4
+
+
+# M4 Multimodal Fusion (ConvNeXt-Tiny + MLP + Gated)
+m4_multimodal_fusion:
+  batch_size: 128
+  epochs: 12
+  patience: 4
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-4
+  dropout: 0.3
+  num_workers: 8
+  prefetch_factor: 4

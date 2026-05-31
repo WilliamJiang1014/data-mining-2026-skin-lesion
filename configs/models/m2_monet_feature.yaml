@@ -1,8 +1,17 @@
 type: monet_feature
 backend: torch
-class_name: PlaceholderMonetFeatureModel
+class_name: MonetFeatureModel
 params:
-  feature_source: monet_or_compatible_vlm
+  encoder: efficientnet_b0
+  image_size: 224
+  pretrained: true
   freeze_encoder: true
+  use_text_prompts: true
   classifier: mlp
-
+  epochs: 20
+  patience: 5
+  learning_rate: 1.0e-3
+  weight_decay: 1.0e-4
+  batch_size: 64
+  dropout: 0.3
+  seed: 2026

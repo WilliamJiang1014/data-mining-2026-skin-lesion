@@ -1,9 +1,20 @@
 type: multimodal
 backend: torch
-class_name: PlaceholderMultimodalModel
+class_name: MultimodalFusionModel
 params:
   image_encoder: convnext_tiny
+  image_size: 224
+  pretrained: true
   metadata_encoder: mlp
+  metadata_hidden_dim: 128
+  metadata_output_dim: 64
   fusion: gated
+  gate_hidden_dim: 128
   loss: weighted_bce
-
+  epochs: 20
+  patience: 5
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-4
+  batch_size: 32
+  dropout: 0.3
+  seed: 2026
