@@ -96,6 +96,28 @@ done
 python scripts/make_report_assets.py
 ```
 
+### 6. 生成论文 Table 4
+
+```bash
+# 默认输出 CSV（mean ± std）
+python scripts/make_table4.py
+
+# 使用 95% CI 代替 std
+python scripts/make_table4.py --use-ci
+
+# 输出 LaTeX 格式
+python scripts/make_table4.py --format latex
+
+# 同时输出 CSV 和 LaTeX
+python scripts/make_table4.py --format both
+```
+
+输出文件：
+- `reports/tables/table4.csv` — CSV 格式表格
+- `reports/tables/table4.tex` — LaTeX 格式表格
+
+表格包含列：Model、pAUC、AUPRC、AUROC、Sens.、Spec.，所有数值为 5 折患者级测试集均值 ± 标准差（或 95% CI）。
+
 ---
 
 ## 二、脚本依赖关系
@@ -737,7 +759,61 @@ python scripts/make_report_assets.py --out reports/tables/main_results.csv
 
 ---
 
-## 八、run_pad_external_eval.py PAD 外部验证脚本
+## 八、make_table4.py 论文表格生成脚本
+
+### 功能定位
+
+`make_table4.py` 从 `main_results.csv` 读取每折测试结果，聚合成论文 Table 4（主实验模型对比）。所有数值为 5 折患者级测试集均值 ± 标准差或 95% CI。
+
+### 主要输入
+
+```text
+reports/tables/main_results.csv
+```
+
+### 主要输出
+
+```text
+reports/tables/table4.csv    # CSV 格式
+reports/tables/table4.tex    # LaTeX 格式（--format latex 时）
+```
+
+### 表格内容
+
+| 列 | 说明 |
+| --- | --- |
+| Model | 模型名称 |
+| pAUC | pAUC@TPR≥0.80 |
+| AUPRC | Average Precision |
+| AUROC | ROC 曲线下面积 |
+| Sens. | 灵敏度 |
+| Spec. | 特异度 |
+
+排除 `m0_constant` 和 `m0_tabular_baseline`，保留 LightGBM、M1-M5。
+
+### 代码执行顺序
+
+1. `main()` 解析 `--input`、`--output`、`--format`、`--use-ci` 参数。
+2. 读取 `main_results.csv`，过滤掉排除的模型。
+3. 按模型分组，对每个指标列计算 5 折均值和标准差（或 95% CI）。
+4. 格式化为 `mean ± std` 字符串。
+5. 按 LightGBM → M1 → M2 → M3 → M4 → M5 顺序输出。
+6. 写出 CSV 或 LaTeX 文件。
+
+### 常用参数
+
+```bash
+python scripts/make_table4.py                              # 默认 CSV，mean ± std
+python scripts/make_table4.py --use-ci                     # 使用 95% CI
+python scripts/make_table4.py --format latex               # 输出 LaTeX
+python scripts/make_table4.py --format both                # 同时输出 CSV 和 LaTeX
+python scripts/make_table4.py --input reports/tables/main_results.csv
+python scripts/make_table4.py --output reports/tables/table4.csv
+```
+
+---
+
+## 九、run_pad_external_eval.py PAD 外部验证脚本
 
 ### 功能定位
 
@@ -819,7 +895,7 @@ python scripts/run_pad_external_eval.py --folds-to-run 0 --reuse-graphs
 
 ---
 
-## 九、run_pad_domain_adaptation.py PAD 域适应脚本
+## 十、run_pad_domain_adaptation.py PAD 域适应脚本
 
 ### 功能定位
 
@@ -901,7 +977,7 @@ python scripts/run_pad_domain_adaptation.py --variant-name mixed --reuse-graphs 
 
 ---
 
-## 十、常见任务怎么跑
+## 十一、常见任务怎么跑
 
 ### 只跑 M0，最快检查整体流程
 
@@ -940,27 +1016,6 @@ python scripts/make_report_assets.py
 ```
 
 脚本内置日志记录，运行时自动写入 `log/{model}_fold{N}.log`，同时打印到终端。
-
-#### Linux 服务器后台运行（nohup）
-
-在 Linux 服务器上使用 `nohup` 后台运行，配合 `CUDA_VISIBLE_DEVICES` 指定 GPU：
-
-```bash
-# 创建日志目录
-mkdir -p log
-
-# 后台跑 M1 5 折（使用 GPU 4）
-CUDA_VISIBLE_DEVICES=4 nohup python scripts/run_train.py --model m1_cnn_baseline --all-folds --device cuda > log/m1_cnn_baseline.log 2>&1 &
-
-# 后台跑 M2 5 折（使用 GPU 5）
-CUDA_VISIBLE_DEVICES=5 nohup python scripts/run_train.py --model m2_monet_feature_baseline --all-folds --device cuda > log/m2_monet.log 2>&1 &
-
-# 后台跑 M3 5 折（使用 GPU 6）
-CUDA_VISIBLE_DEVICES=6 nohup python scripts/run_train.py --model m3_transformer_baseline --all-folds --device cuda > log/m3_transformer.log 2>&1 &
-
-# 后台跑 M4 5 折（使用 GPU 7）
-CUDA_VISIBLE_DEVICES=7 nohup python scripts/run_train.py --model m4_multimodal_fusion --all-folds --device cuda > log/m4_multimodal.log 2>&1 &
-```
 
 查看实时训练日志：
 
@@ -1034,7 +1089,7 @@ python scripts/run_train.py --model m0_constant --fold 0
 
 ---
 
-## 十一、输出文件怎么看
+## 十二、输出文件怎么看
 
 ### `manifest_isic.csv`
 
@@ -1105,7 +1160,7 @@ python scripts/run_train.py --model m0_constant --fold 0
 
 ---
 
-## 十二、排错提示
+## 十三、排错提示
 
 ### 1. 找不到图片
 
@@ -1169,7 +1224,7 @@ data/artifacts/trained_models/{model_name}/fold{f}/metrics.json
 
 ---
 
-## 十三、推荐阅读顺序
+## 十四、推荐阅读顺序
 
 如果你是为了理解代码，建议按这个顺序打开文件：
 
@@ -1187,5 +1242,6 @@ data/artifacts/trained_models/{model_name}/fold{f}/metrics.json
 12. `src/skin_lesion_risk/models/adapters/graph.py`
 13. `scripts/evaluate.py`
 14. `scripts/make_report_assets.py`
+15. `scripts/make_table4.py`
 
 这样看会比较顺：先理解数据格式，再理解模型统一接口，最后理解每个模型适配器。

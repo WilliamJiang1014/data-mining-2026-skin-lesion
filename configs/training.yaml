@@ -4,45 +4,67 @@
 
 # M1 CNN (EfficientNet-B0)
 m1_cnn_baseline:
-  batch_size: 256
-  epochs: 12
-  patience: 4
-  learning_rate: 1.0e-4
+  batch_size: 80
+  epochs: 30
+  patience: 10
+  learning_rate: 1.3e-4
+  backbone_lr_scale: 0.1
   weight_decay: 1.0e-4
   dropout: 0.3
+  max_pos_weight: 100.0
+  warmup_epochs: 5
+  grad_clip_norm: 1.0
+  image_size: 384
   num_workers: 8
   prefetch_factor: 4
 
-# M2 MONET Feature (frozen EfficientNet-B0 + MLP)
+# M2 MONET Feature (EfficientNet-B0 + MLP, progressive unfreeze)
 m2_monet_feature_baseline:
-  batch_size: 768
-  epochs: 12
-  patience: 4
-  learning_rate: 1.0e-3
+  batch_size: 80
+  epochs: 30
+  patience: 10
+  learning_rate: 2.2e-4
+  encoder_lr_scale: 0.1
   weight_decay: 1.0e-4
   dropout: 0.3
+  freeze_encoder: false
+  unfreeze_after: 5
+  max_pos_weight: 100.0
+  warmup_epochs: 5
+  grad_clip_norm: 1.0
+  image_size: 384
   num_workers: 8
   prefetch_factor: 4
 
 # M3 Transformer (Swin-Tiny)
 m3_transformer_baseline:
-  batch_size: 128
-  epochs: 10
-  patience: 3
-  learning_rate: 5.0e-5
+  batch_size: 56
+  epochs: 30
+  patience: 10
+  learning_rate: 7.0e-5
+  backbone_lr_scale: 0.1
   weight_decay: 0.05
   dropout: 0.3
+  max_pos_weight: 100.0
+  warmup_epochs: 5
+  grad_clip_norm: 1.0
+  image_size: 384
   num_workers: 8
   prefetch_factor: 4
 
 
 # M4 Multimodal Fusion (ConvNeXt-Tiny + MLP + Gated)
 m4_multimodal_fusion:
-  batch_size: 192
-  epochs: 12
-  patience: 4
-  learning_rate: 1.0e-4
+  batch_size: 72
+  epochs: 30
+  patience: 10
+  learning_rate: 1.1e-4
+  backbone_lr_scale: 0.1
   weight_decay: 1.0e-4
   dropout: 0.3
+  max_pos_weight: 100.0
+  warmup_epochs: 5
+  grad_clip_norm: 1.0
+  image_size: 384
   num_workers: 8
   prefetch_factor: 4

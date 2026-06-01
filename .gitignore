@@ -15,7 +15,6 @@ data/processed/**
 data/external/**
 data/artifacts/**
 reports/figures/**
-reports/tables/**
 
 # Keep directory placeholders
 !data/raw/**/

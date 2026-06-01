@@ -66,7 +66,7 @@ class LesionImageDataset(Dataset):
 # Transforms
 # ---------------------------------------------------------------------------
 
-def train_transforms(image_size: int = 224) -> Any:
+def train_transforms(image_size: int = 384) -> Any:
     from torchvision import transforms
 
     return transforms.Compose([
@@ -74,13 +74,14 @@ def train_transforms(image_size: int = 224) -> Any:
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
         transforms.RandomRotation(30),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1, hue=0.02),
+        transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2, hue=0.04),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        transforms.RandomErasing(p=0.3, scale=(0.02, 0.15), ratio=(0.3, 3.3)),
     ])
 
 
-def eval_transforms(image_size: int = 224) -> Any:
+def eval_transforms(image_size: int = 384) -> Any:
     from torchvision import transforms
 
     return transforms.Compose([
@@ -138,7 +139,7 @@ class FocalLoss(nn.Module):
 # ---------------------------------------------------------------------------
 
 class CNNImageModel(BaseModelAdapter):
-    """EfficientNet-B0 image baseline with weighted BCE loss."""
+    """EfficientNet-B0 image baseline with capped pos_weight, warmup, and gradient clipping."""
 
     model_type = "image"
 
@@ -160,13 +161,20 @@ class CNNImageModel(BaseModelAdapter):
 
         encoder = str(self.params.get("encoder", "efficientnet_b0"))
         pretrained = bool(self.params.get("pretrained", True))
-        image_size = int(self.params.get("image_size", 224))
-        epochs = int(self.params.get("epochs", 20))
-        patience = int(self.params.get("patience", 5))
+        image_size = int(self.params.get("image_size", 384))
+        epochs = int(self.params.get("epochs", 30))
+        patience = int(self.params.get("patience", 10))
         lr = float(self.params.get("learning_rate", 1e-4))
+        backbone_lr_scale = float(self.params.get("backbone_lr_scale", 0.1))
         weight_decay = float(self.params.get("weight_decay", 1e-4))
         batch_size = int(self.params.get("batch_size", 32))
         dropout = float(self.params.get("dropout", 0.3))
+        max_pos_weight = float(self.params.get("max_pos_weight", 100.0))
+        warmup_epochs = int(self.params.get("warmup_epochs", 5))
+        grad_clip_norm = float(self.params.get("grad_clip_norm", 1.0))
+        use_focal = bool(self.params.get("use_focal", False))
+        focal_alpha = float(self.params.get("focal_alpha", 0.25))
+        focal_gamma = float(self.params.get("focal_gamma", 2.0))
         out_dir = Path(str(self.params.get("out_dir", "data/artifacts/trained_models/m1_cnn_baseline/fold0"))).resolve()
         out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -183,11 +191,31 @@ class CNNImageModel(BaseModelAdapter):
         y_train = np.asarray(train.labels).astype(int)
         positives = float(y_train.sum())
         negatives = float(len(y_train) - positives)
-        pos_weight = torch.tensor([negatives / max(positives, 1.0)], dtype=torch.float32, device=self.device)
-        criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        raw_pw = negatives / max(positives, 1.0)
+        capped_pw = min(raw_pw, max_pos_weight)
+        pos_weight = torch.tensor([capped_pw], dtype=torch.float32, device=self.device)
 
-        optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+        if use_focal:
+            criterion = FocalLoss(alpha=focal_alpha, gamma=focal_gamma, pos_weight=pos_weight)
+        else:
+            criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+
+        # Differential LR: backbone uses smaller lr
+        backbone_params = list(self.backbone.parameters())
+        head_params = list(self.head.parameters())
+        optimizer = torch.optim.AdamW([
+            {"params": backbone_params, "lr": lr * backbone_lr_scale},
+            {"params": head_params, "lr": lr},
+        ], weight_decay=weight_decay)
+
+        # Cosine annealing with linear warmup
+        warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
+            optimizer, start_factor=1e-3, total_iters=warmup_epochs,
+        )
+        cosine_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs - warmup_epochs)
+        scheduler = torch.optim.lr_scheduler.SequentialLR(
+            optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[warmup_epochs],
+        )
 
         train_ds = LesionImageDataset(train.image_paths, y_train, transform=train_transforms(image_size))
         train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, **_loader_kwargs(self.params, self.device))
@@ -212,6 +240,8 @@ class CNNImageModel(BaseModelAdapter):
                 logits = self.head(features).squeeze(1)
                 loss = criterion(logits, labels)
                 loss.backward()
+                if grad_clip_norm > 0:
+                    nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
                 optimizer.step()
                 epoch_loss += float(loss.detach().cpu())
                 n_batches += 1
@@ -271,7 +301,7 @@ class CNNImageModel(BaseModelAdapter):
         if batch.image_paths is None:
             raise ValueError("CNNImageModel.predict_proba requires ModelBatch.image_paths.")
 
-        image_size = int(self.params.get("image_size", 224))
+        image_size = int(self.params.get("image_size", 384))
         batch_size = int(self.params.get("batch_size", 32))
         labels = np.asarray(batch.labels).astype(int) if batch.labels is not None else None
         ds = LesionImageDataset(batch.image_paths, labels, transform=eval_transforms(image_size))
@@ -375,14 +405,18 @@ class TransformerImageModel(BaseModelAdapter):
         encoder = str(self.params.get("encoder", "swin_tiny_patch4_window7_224"))
         pretrained = bool(self.params.get("pretrained", True))
         image_size = int(self.params.get("image_size", 384))
-        epochs = int(self.params.get("epochs", 15))
-        patience = int(self.params.get("patience", 4))
+        epochs = int(self.params.get("epochs", 30))
+        patience = int(self.params.get("patience", 10))
         lr = float(self.params.get("learning_rate", 5e-5))
+        backbone_lr_scale = float(self.params.get("backbone_lr_scale", 0.1))
         weight_decay = float(self.params.get("weight_decay", 0.05))
         batch_size = int(self.params.get("batch_size", 16))
         dropout = float(self.params.get("dropout", 0.3))
         focal_alpha = float(self.params.get("focal_alpha", 0.25))
         focal_gamma = float(self.params.get("focal_gamma", 2.0))
+        max_pos_weight = float(self.params.get("max_pos_weight", 100.0))
+        warmup_epochs = int(self.params.get("warmup_epochs", 5))
+        grad_clip_norm = float(self.params.get("grad_clip_norm", 1.0))
         out_dir = Path(str(self.params.get("out_dir", "data/artifacts/trained_models/m3_transformer_baseline/fold0"))).resolve()
         out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -399,11 +433,27 @@ class TransformerImageModel(BaseModelAdapter):
         y_train = np.asarray(train.labels).astype(int)
         positives = float(y_train.sum())
         negatives = float(len(y_train) - positives)
-        pos_weight = torch.tensor([negatives / max(positives, 1.0)], dtype=torch.float32, device=self.device)
+        raw_pw = negatives / max(positives, 1.0)
+        capped_pw = min(raw_pw, max_pos_weight)
+        pos_weight = torch.tensor([capped_pw], dtype=torch.float32, device=self.device)
         criterion = FocalLoss(alpha=focal_alpha, gamma=focal_gamma, pos_weight=pos_weight)
 
-        optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+        # Differential LR: backbone uses smaller lr
+        backbone_params = list(self.backbone.parameters())
+        head_params = list(self.head.parameters())
+        optimizer = torch.optim.AdamW([
+            {"params": backbone_params, "lr": lr * backbone_lr_scale},
+            {"params": head_params, "lr": lr},
+        ], weight_decay=weight_decay)
+
+        # Cosine annealing with linear warmup
+        warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
+            optimizer, start_factor=1e-3, total_iters=warmup_epochs,
+        )
+        cosine_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs - warmup_epochs)
+        scheduler = torch.optim.lr_scheduler.SequentialLR(
+            optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[warmup_epochs],
+        )
 
         train_ds = LesionImageDataset(train.image_paths, y_train, transform=train_transforms(image_size))
         train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, **_loader_kwargs(self.params, self.device))
@@ -428,6 +478,8 @@ class TransformerImageModel(BaseModelAdapter):
                 logits = self.head(features).squeeze(1)
                 loss = criterion(logits, labels)
                 loss.backward()
+                if grad_clip_norm > 0:
+                    nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
                 optimizer.step()
                 epoch_loss += float(loss.detach().cpu())
                 n_batches += 1

@@ -3,7 +3,7 @@ backend: torch
 class_name: MultimodalFusionModel
 params:
   image_encoder: convnext_tiny
-  image_size: 224
+  image_size: 384
   pretrained: true
   metadata_encoder: mlp
   metadata_hidden_dim: 128
@@ -11,10 +11,14 @@ params:
   fusion: gated
   gate_hidden_dim: 128
   loss: weighted_bce
-  epochs: 20
-  patience: 5
+  max_pos_weight: 100.0
+  epochs: 30
+  patience: 10
   learning_rate: 1.0e-4
+  backbone_lr_scale: 0.1
   weight_decay: 1.0e-4
   batch_size: 32
   dropout: 0.3
+  warmup_epochs: 5
+  grad_clip_norm: 1.0
   seed: 2026

@@ -3,15 +3,20 @@ backend: torch
 class_name: MonetFeatureModel
 params:
   encoder: efficientnet_b0
-  image_size: 224
+  image_size: 384
   pretrained: true
-  freeze_encoder: true
+  freeze_encoder: false
+  unfreeze_after: 5
   use_text_prompts: true
   classifier: mlp
-  epochs: 20
-  patience: 5
-  learning_rate: 1.0e-3
+  max_pos_weight: 100.0
+  epochs: 30
+  patience: 10
+  learning_rate: 2.0e-4
+  encoder_lr_scale: 0.1
   weight_decay: 1.0e-4
-  batch_size: 64
+  batch_size: 32
   dropout: 0.3
+  warmup_epochs: 5
+  grad_clip_norm: 1.0
   seed: 2026

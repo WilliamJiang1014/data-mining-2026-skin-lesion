@@ -71,11 +71,6 @@ class MultimodalDataset(Dataset):
 # Gated Fusion Module
 # ---------------------------------------------------------------------------
 
-
-# ---------------------------------------------------------------------------
-# Gated Fusion Module
-# ---------------------------------------------------------------------------
-
 class GatedFusion(nn.Module):
     """Learns element-wise gate weights to fuse image and metadata features."""
 
@@ -87,11 +82,13 @@ class GatedFusion(nn.Module):
             nn.Linear(hidden_dim, image_dim),
             nn.Sigmoid(),
         )
+        self.metadata_scale = nn.Parameter(torch.ones(1))
 
     def forward(self, image_features: torch.Tensor, metadata_features: torch.Tensor) -> torch.Tensor:
         gate_weights = self.gate(torch.cat([image_features, metadata_features], dim=1))
         gated_image = gate_weights * image_features
-        return torch.cat([gated_image, metadata_features], dim=1)
+        scaled_metadata = self.metadata_scale * metadata_features
+        return torch.cat([gated_image, scaled_metadata], dim=1)
 
 
 # ---------------------------------------------------------------------------
@@ -99,16 +96,20 @@ class GatedFusion(nn.Module):
 # ---------------------------------------------------------------------------
 
 class MetadataEncoder(nn.Module):
-    """MLP encoder for tabular metadata features."""
+    """MLP encoder for tabular metadata features with LayerNorm."""
 
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, dropout: float = 0.3) -> None:
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.GELU(),
+            nn.LayerNorm(hidden_dim),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim, output_dim),
+            nn.Linear(hidden_dim, hidden_dim // 2),
             nn.GELU(),
+            nn.LayerNorm(hidden_dim // 2),
+            nn.Dropout(dropout * 0.5),
+            nn.Linear(hidden_dim // 2, output_dim),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -149,13 +150,17 @@ class MultimodalFusionModel(BaseModelAdapter):
 
         encoder_name = str(self.params.get("image_encoder", "convnext_tiny"))
         pretrained = bool(self.params.get("pretrained", True))
-        image_size = int(self.params.get("image_size", 224))
-        epochs = int(self.params.get("epochs", 20))
-        patience = int(self.params.get("patience", 5))
+        image_size = int(self.params.get("image_size", 384))
+        epochs = int(self.params.get("epochs", 30))
+        patience = int(self.params.get("patience", 10))
         lr = float(self.params.get("learning_rate", 1e-4))
+        backbone_lr_scale = float(self.params.get("backbone_lr_scale", 0.1))
         weight_decay = float(self.params.get("weight_decay", 1e-4))
         batch_size = int(self.params.get("batch_size", 32))
         dropout = float(self.params.get("dropout", 0.3))
+        max_pos_weight = float(self.params.get("max_pos_weight", 100.0))
+        warmup_epochs = int(self.params.get("warmup_epochs", 5))
+        grad_clip_norm = float(self.params.get("grad_clip_norm", 1.0))
         metadata_hidden_dim = int(self.params.get("metadata_hidden_dim", 128))
         metadata_output_dim = int(self.params.get("metadata_output_dim", 64))
         gate_hidden_dim = int(self.params.get("gate_hidden_dim", 128))
@@ -177,14 +182,16 @@ class MultimodalFusionModel(BaseModelAdapter):
         # Build gated fusion
         self.gate = GatedFusion(self.image_feature_dim, metadata_output_dim, gate_hidden_dim)
 
-        # Build classifier head
+        # Build classifier head with LayerNorm
         fused_dim = self.image_feature_dim + metadata_output_dim
         self.head = nn.Sequential(
             nn.Linear(fused_dim, 256),
             nn.GELU(),
+            nn.LayerNorm(256),
             nn.Dropout(dropout),
             nn.Linear(256, 64),
             nn.GELU(),
+            nn.LayerNorm(64),
             nn.Dropout(dropout * 0.5),
             nn.Linear(64, 1),
         )
@@ -198,12 +205,29 @@ class MultimodalFusionModel(BaseModelAdapter):
         y_train = np.asarray(train.labels).astype(int)
         positives = float(y_train.sum())
         negatives = float(len(y_train) - positives)
-        pos_weight = torch.tensor([negatives / max(positives, 1.0)], dtype=torch.float32, device=self.device)
+        raw_pw = negatives / max(positives, 1.0)
+        capped_pw = min(raw_pw, max_pos_weight)
+        pos_weight = torch.tensor([capped_pw], dtype=torch.float32, device=self.device)
         criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        use_amp = self.device.type == "cuda"
+        scaler = torch.amp.GradScaler("cuda") if use_amp else None
 
-        all_params = list(self.image_encoder.parameters()) + list(self.metadata_encoder.parameters()) + list(self.gate.parameters()) + list(self.head.parameters())
-        optimizer = torch.optim.AdamW(all_params, lr=lr, weight_decay=weight_decay)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+        # Differential LR: image backbone uses smaller lr
+        optimizer = torch.optim.AdamW([
+            {"params": self.image_encoder.parameters(), "lr": lr * backbone_lr_scale},
+            {"params": self.metadata_encoder.parameters(), "lr": lr},
+            {"params": self.gate.parameters(), "lr": lr},
+            {"params": self.head.parameters(), "lr": lr},
+        ], weight_decay=weight_decay)
+
+        # Cosine annealing with linear warmup
+        warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
+            optimizer, start_factor=1e-3, total_iters=warmup_epochs,
+        )
+        cosine_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs - warmup_epochs)
+        scheduler = torch.optim.lr_scheduler.SequentialLR(
+            optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[warmup_epochs],
+        )
 
         # MultimodalDataset keeps image/metadata/label aligned when shuffling
         train_meta_tensor = torch.tensor(x_train_meta.values.astype(np.float32), dtype=torch.float32)
@@ -233,13 +257,30 @@ class MultimodalFusionModel(BaseModelAdapter):
                 labels = labels.to(self.device, non_blocking=True)
 
                 optimizer.zero_grad()
-                img_features = self.image_encoder(images)
-                meta_features = self.metadata_encoder(meta_batch)
-                fused = self.gate(img_features, meta_features)
-                logits = self.head(fused).squeeze(1)
-                loss = criterion(logits, labels)
-                loss.backward()
-                optimizer.step()
+                with torch.amp.autocast(self.device.type, enabled=use_amp):
+                    img_features = self.image_encoder(images)
+                    meta_features = self.metadata_encoder(meta_batch)
+                    fused = self.gate(img_features, meta_features)
+                    logits = self.head(fused).squeeze(1)
+                    loss = criterion(logits, labels)
+                if use_amp:
+                    scaler.scale(loss).backward()
+                    if grad_clip_norm > 0:
+                        scaler.unscale_(optimizer)
+                        nn.utils.clip_grad_norm_(
+                            list(self.image_encoder.parameters()) + list(self.metadata_encoder.parameters()) + list(self.gate.parameters()) + list(self.head.parameters()),
+                            grad_clip_norm,
+                        )
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    if grad_clip_norm > 0:
+                        nn.utils.clip_grad_norm_(
+                            list(self.image_encoder.parameters()) + list(self.metadata_encoder.parameters()) + list(self.gate.parameters()) + list(self.head.parameters()),
+                            grad_clip_norm,
+                        )
+                    optimizer.step()
                 epoch_loss += float(loss.detach().cpu())
                 n_batches += 1
             scheduler.step()
@@ -320,7 +361,7 @@ class MultimodalFusionModel(BaseModelAdapter):
         if batch.metadata is None:
             raise ValueError("MultimodalFusionModel.predict_proba requires ModelBatch.metadata.")
 
-        image_size = int(self.params.get("image_size", 224))
+        image_size = int(self.params.get("image_size", 384))
         batch_size = int(self.params.get("batch_size", 32))
         labels = np.asarray(batch.labels).astype(int) if batch.labels is not None else None
         x_meta = self._metadata_frame(batch.metadata, fit=False)
@@ -334,7 +375,7 @@ class MultimodalFusionModel(BaseModelAdapter):
         self.head.eval()
 
         all_scores: list[np.ndarray] = []
-        with torch.no_grad():
+        with torch.no_grad(), torch.amp.autocast(self.device.type, enabled=self.device.type == "cuda"):
             for images, meta_batch, _ in loader:
                 images = images.to(self.device, non_blocking=True)
                 meta_batch = meta_batch.to(self.device, non_blocking=True)
@@ -343,7 +384,7 @@ class MultimodalFusionModel(BaseModelAdapter):
                 fused = self.gate(img_features, meta_features)
                 logits = self.head(fused).squeeze(1)
                 probs = torch.sigmoid(logits)
-                all_scores.append(probs.detach().cpu().numpy())
+                all_scores.append(probs.float().detach().cpu().numpy())
         scores = np.concatenate(all_scores)
         return PredictionResult(sample_ids=batch.sample_ids, scores=scores, labels=labels)
 
@@ -397,9 +438,11 @@ class MultimodalFusionModel(BaseModelAdapter):
         adapter.head = nn.Sequential(
             nn.Linear(fused_dim, 256),
             nn.GELU(),
+            nn.LayerNorm(256),
             nn.Dropout(dropout),
             nn.Linear(256, 64),
             nn.GELU(),
+            nn.LayerNorm(64),
             nn.Dropout(dropout * 0.5),
             nn.Linear(64, 1),
         )
@@ -437,7 +480,7 @@ class MultimodalFusionModel(BaseModelAdapter):
         self.head.eval()
 
         all_scores: list[np.ndarray] = []
-        with torch.no_grad():
+        with torch.no_grad(), torch.amp.autocast(self.device.type, enabled=self.device.type == "cuda"):
             for images, meta_batch, _ in loader:
                 images = images.to(self.device, non_blocking=True)
                 meta_batch = meta_batch.to(self.device, non_blocking=True)
@@ -446,7 +489,7 @@ class MultimodalFusionModel(BaseModelAdapter):
                 fused = self.gate(img_features, meta_features)
                 logits = self.head(fused).squeeze(1)
                 probs = torch.sigmoid(logits)
-                all_scores.append(probs.detach().cpu().numpy())
+                all_scores.append(probs.float().detach().cpu().numpy())
         scores = np.concatenate(all_scores)
         labels = np.asarray(batch.labels).astype(int) if batch.labels is not None else None
         return PredictionResult(sample_ids=batch.sample_ids, scores=scores, labels=labels)
@@ -456,7 +499,7 @@ class MultimodalFusionModel(BaseModelAdapter):
 # Local transforms (avoids top-level torchvision import)
 # ---------------------------------------------------------------------------
 
-def _train_transforms(image_size: int = 224) -> Any:
+def _train_transforms(image_size: int = 384) -> Any:
     from torchvision import transforms
 
     return transforms.Compose([
@@ -464,13 +507,14 @@ def _train_transforms(image_size: int = 224) -> Any:
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
         transforms.RandomRotation(30),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1, hue=0.02),
+        transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2, hue=0.04),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        transforms.RandomErasing(p=0.3, scale=(0.02, 0.15), ratio=(0.3, 3.3)),
     ])
 
 
-def _eval_transforms(image_size: int = 224) -> Any:
+def _eval_transforms(image_size: int = 384) -> Any:
     from torchvision import transforms
 
     return transforms.Compose([
