@@ -226,6 +226,9 @@ class CNNImageModel(BaseModelAdapter):
             val_ds = LesionImageDataset(valid.image_paths, y_val, transform=eval_transforms(image_size))
             val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, **_loader_kwargs(self.params, self.device))
 
+        use_amp = self.device.type == "cuda"
+        scaler = torch.amp.GradScaler("cuda") if use_amp else None
+
         best_metric = -float("inf")
         bad_epochs = 0
         for epoch in range(1, epochs + 1):
@@ -236,13 +239,22 @@ class CNNImageModel(BaseModelAdapter):
                 images = images.to(self.device, non_blocking=True)
                 labels = labels.to(self.device, non_blocking=True)
                 optimizer.zero_grad()
-                features = self.backbone(images)
-                logits = self.head(features).squeeze(1)
-                loss = criterion(logits, labels)
-                loss.backward()
-                if grad_clip_norm > 0:
-                    nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
-                optimizer.step()
+                with torch.amp.autocast(self.device.type, enabled=use_amp):
+                    features = self.backbone(images)
+                    logits = self.head(features).squeeze(1)
+                    loss = criterion(logits, labels)
+                if use_amp:
+                    scaler.scale(loss).backward()
+                    if grad_clip_norm > 0:
+                        scaler.unscale_(optimizer)
+                        nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    if grad_clip_norm > 0:
+                        nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
+                    optimizer.step()
                 epoch_loss += float(loss.detach().cpu())
                 n_batches += 1
             scheduler.step()
@@ -309,13 +321,15 @@ class CNNImageModel(BaseModelAdapter):
 
         model = nn.Sequential(self.backbone, self.head).to(self.device, non_blocking=True)
         model.eval()
+        use_amp = self.device.type == "cuda"
         all_scores: list[np.ndarray] = []
         with torch.no_grad():
             for images, _ in loader:
                 images = images.to(self.device, non_blocking=True)
-                features = self.backbone(images)
-                logits = self.head(features).squeeze(1)
-                probs = torch.sigmoid(logits)
+                with torch.amp.autocast(self.device.type, enabled=use_amp):
+                    features = self.backbone(images)
+                    logits = self.head(features).squeeze(1)
+                    probs = torch.sigmoid(logits).float()
                 all_scores.append(probs.detach().cpu().numpy())
         scores = np.concatenate(all_scores)
         return PredictionResult(sample_ids=batch.sample_ids, scores=scores, labels=labels)
@@ -364,13 +378,15 @@ class CNNImageModel(BaseModelAdapter):
     def _predict_loader(self, loader: DataLoader, batch: ModelBatch) -> PredictionResult:
         model = nn.Sequential(self.backbone, self.head).to(self.device, non_blocking=True)
         model.eval()
+        use_amp = self.device.type == "cuda"
         all_scores: list[np.ndarray] = []
         with torch.no_grad():
             for images, _ in loader:
                 images = images.to(self.device, non_blocking=True)
-                features = self.backbone(images)
-                logits = self.head(features).squeeze(1)
-                probs = torch.sigmoid(logits)
+                with torch.amp.autocast(self.device.type, enabled=use_amp):
+                    features = self.backbone(images)
+                    logits = self.head(features).squeeze(1)
+                    probs = torch.sigmoid(logits).float()
                 all_scores.append(probs.detach().cpu().numpy())
         scores = np.concatenate(all_scores)
         labels = np.asarray(batch.labels).astype(int) if batch.labels is not None else None
@@ -464,6 +480,9 @@ class TransformerImageModel(BaseModelAdapter):
             val_ds = LesionImageDataset(valid.image_paths, y_val, transform=eval_transforms(image_size))
             val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, **_loader_kwargs(self.params, self.device))
 
+        use_amp = self.device.type == "cuda"
+        scaler = torch.amp.GradScaler("cuda") if use_amp else None
+
         best_metric = -float("inf")
         bad_epochs = 0
         for epoch in range(1, epochs + 1):
@@ -474,13 +493,22 @@ class TransformerImageModel(BaseModelAdapter):
                 images = images.to(self.device, non_blocking=True)
                 labels = labels.to(self.device, non_blocking=True)
                 optimizer.zero_grad()
-                features = self.backbone(images)
-                logits = self.head(features).squeeze(1)
-                loss = criterion(logits, labels)
-                loss.backward()
-                if grad_clip_norm > 0:
-                    nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
-                optimizer.step()
+                with torch.amp.autocast(self.device.type, enabled=use_amp):
+                    features = self.backbone(images)
+                    logits = self.head(features).squeeze(1)
+                    loss = criterion(logits, labels)
+                if use_amp:
+                    scaler.scale(loss).backward()
+                    if grad_clip_norm > 0:
+                        scaler.unscale_(optimizer)
+                        nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    if grad_clip_norm > 0:
+                        nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
+                    optimizer.step()
                 epoch_loss += float(loss.detach().cpu())
                 n_batches += 1
             scheduler.step()
@@ -547,13 +575,15 @@ class TransformerImageModel(BaseModelAdapter):
 
         model = nn.Sequential(self.backbone, self.head).to(self.device, non_blocking=True)
         model.eval()
+        use_amp = self.device.type == "cuda"
         all_scores: list[np.ndarray] = []
         with torch.no_grad():
             for images, _ in loader:
                 images = images.to(self.device, non_blocking=True)
-                features = self.backbone(images)
-                logits = self.head(features).squeeze(1)
-                probs = torch.sigmoid(logits)
+                with torch.amp.autocast(self.device.type, enabled=use_amp):
+                    features = self.backbone(images)
+                    logits = self.head(features).squeeze(1)
+                    probs = torch.sigmoid(logits).float()
                 all_scores.append(probs.detach().cpu().numpy())
         scores = np.concatenate(all_scores)
         return PredictionResult(sample_ids=batch.sample_ids, scores=scores, labels=labels)
@@ -603,13 +633,15 @@ class TransformerImageModel(BaseModelAdapter):
     def _predict_loader(self, loader: DataLoader, batch: ModelBatch) -> PredictionResult:
         model = nn.Sequential(self.backbone, self.head).to(self.device, non_blocking=True)
         model.eval()
+        use_amp = self.device.type == "cuda"
         all_scores: list[np.ndarray] = []
         with torch.no_grad():
             for images, _ in loader:
                 images = images.to(self.device, non_blocking=True)
-                features = self.backbone(images)
-                logits = self.head(features).squeeze(1)
-                probs = torch.sigmoid(logits)
+                with torch.amp.autocast(self.device.type, enabled=use_amp):
+                    features = self.backbone(images)
+                    logits = self.head(features).squeeze(1)
+                    probs = torch.sigmoid(logits).float()
                 all_scores.append(probs.detach().cpu().numpy())
         scores = np.concatenate(all_scores)
         labels = np.asarray(batch.labels).astype(int) if batch.labels is not None else None

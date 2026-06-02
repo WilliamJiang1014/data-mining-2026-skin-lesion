@@ -164,6 +164,8 @@ class MultimodalFusionModel(BaseModelAdapter):
         metadata_hidden_dim = int(self.params.get("metadata_hidden_dim", 128))
         metadata_output_dim = int(self.params.get("metadata_output_dim", 64))
         gate_hidden_dim = int(self.params.get("gate_hidden_dim", 128))
+        unfreeze_after = int(self.params.get("unfreeze_after", 5))
+        freeze_encoder = bool(self.params.get("freeze_encoder", False))
         out_dir = Path(str(self.params.get("out_dir", "data/artifacts/trained_models/m4_multimodal_fusion/fold0"))).resolve()
         out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -202,6 +204,10 @@ class MultimodalFusionModel(BaseModelAdapter):
         self.gate.to(self.device)
         self.head.to(self.device)
 
+        # Freeze image encoder initially (progressive unfreeze)
+        for param in self.image_encoder.parameters():
+            param.requires_grad = False
+
         y_train = np.asarray(train.labels).astype(int)
         positives = float(y_train.sum())
         negatives = float(len(y_train) - positives)
@@ -212,9 +218,8 @@ class MultimodalFusionModel(BaseModelAdapter):
         use_amp = self.device.type == "cuda"
         scaler = torch.amp.GradScaler("cuda") if use_amp else None
 
-        # Differential LR: image backbone uses smaller lr
+        # Differential LR: image backbone added when unfrozen
         optimizer = torch.optim.AdamW([
-            {"params": self.image_encoder.parameters(), "lr": lr * backbone_lr_scale},
             {"params": self.metadata_encoder.parameters(), "lr": lr},
             {"params": self.gate.parameters(), "lr": lr},
             {"params": self.head.parameters(), "lr": lr},
@@ -244,7 +249,29 @@ class MultimodalFusionModel(BaseModelAdapter):
 
         best_metric = -float("inf")
         bad_epochs = 0
+        encoder_unfrozen = False
         for epoch in range(1, epochs + 1):
+            # Progressive unfreezing: unfreeze encoder after unfreeze_after epochs
+            if not encoder_unfrozen and not freeze_encoder and epoch > unfreeze_after:
+                for param in self.image_encoder.parameters():
+                    param.requires_grad = True
+                # Rebuild optimizer with encoder params at lower lr
+                optimizer = torch.optim.AdamW([
+                    {"params": self.image_encoder.parameters(), "lr": lr * backbone_lr_scale},
+                    {"params": self.metadata_encoder.parameters(), "lr": lr},
+                    {"params": self.gate.parameters(), "lr": lr},
+                    {"params": self.head.parameters(), "lr": lr},
+                ], weight_decay=weight_decay)
+                # Rebuild scheduler with warmup for unfrozen phase
+                remaining = epochs - epoch + 1
+                warmup_sched = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1e-2, total_iters=min(3, remaining // 3))
+                cosine_sched = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=remaining - min(3, remaining // 3))
+                scheduler = torch.optim.lr_scheduler.SequentialLR(
+                    optimizer, schedulers=[warmup_sched, cosine_sched], milestones=[min(3, remaining // 3)],
+                )
+                if use_amp:
+                    scaler = torch.amp.GradScaler("cuda")
+                encoder_unfrozen = True
             self.image_encoder.train()
             self.metadata_encoder.train()
             self.gate.train()
@@ -267,19 +294,19 @@ class MultimodalFusionModel(BaseModelAdapter):
                     scaler.scale(loss).backward()
                     if grad_clip_norm > 0:
                         scaler.unscale_(optimizer)
-                        nn.utils.clip_grad_norm_(
-                            list(self.image_encoder.parameters()) + list(self.metadata_encoder.parameters()) + list(self.gate.parameters()) + list(self.head.parameters()),
-                            grad_clip_norm,
-                        )
+                        params_to_clip = list(self.metadata_encoder.parameters()) + list(self.gate.parameters()) + list(self.head.parameters())
+                        if encoder_unfrozen:
+                            params_to_clip = list(self.image_encoder.parameters()) + params_to_clip
+                        nn.utils.clip_grad_norm_(params_to_clip, grad_clip_norm)
                     scaler.step(optimizer)
                     scaler.update()
                 else:
                     loss.backward()
                     if grad_clip_norm > 0:
-                        nn.utils.clip_grad_norm_(
-                            list(self.image_encoder.parameters()) + list(self.metadata_encoder.parameters()) + list(self.gate.parameters()) + list(self.head.parameters()),
-                            grad_clip_norm,
-                        )
+                        params_to_clip = list(self.metadata_encoder.parameters()) + list(self.gate.parameters()) + list(self.head.parameters())
+                        if encoder_unfrozen:
+                            params_to_clip = list(self.image_encoder.parameters()) + params_to_clip
+                        nn.utils.clip_grad_norm_(params_to_clip, grad_clip_norm)
                     optimizer.step()
                 epoch_loss += float(loss.detach().cpu())
                 n_batches += 1

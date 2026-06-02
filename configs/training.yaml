@@ -38,10 +38,10 @@ m2_monet_feature_baseline:
 
 # M3 Transformer (Swin-Tiny)
 m3_transformer_baseline:
-  batch_size: 56
+  batch_size: 96
   epochs: 30
   patience: 10
-  learning_rate: 7.0e-5
+  learning_rate: 8.0e-5
   backbone_lr_scale: 0.1
   weight_decay: 0.05
   dropout: 0.3
@@ -55,13 +55,15 @@ m3_transformer_baseline:
 
 # M4 Multimodal Fusion (ConvNeXt-Tiny + MLP + Gated)
 m4_multimodal_fusion:
-  batch_size: 72
-  epochs: 30
+  batch_size: 128
+  epochs: 40
   patience: 10
-  learning_rate: 1.1e-4
+  learning_rate: 1.5e-4
   backbone_lr_scale: 0.1
   weight_decay: 1.0e-4
   dropout: 0.3
+  freeze_encoder: false
+  unfreeze_after: 5
   max_pos_weight: 100.0
   warmup_epochs: 5
   grad_clip_norm: 1.0
