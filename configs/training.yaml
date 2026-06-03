@@ -1,0 +1,72 @@
+# 统一训练超参数配置
+# 修改此文件即可调整所有模型的训练参数，无需逐个改模型配置。
+# 命令行参数（--epochs, --batch-size 等）会覆盖这里的值。
+
+# M1 CNN (EfficientNet-B0)
+m1_cnn_baseline:
+  batch_size: 80
+  epochs: 30
+  patience: 10
+  learning_rate: 1.3e-4
+  backbone_lr_scale: 0.1
+  weight_decay: 1.0e-4
+  dropout: 0.3
+  max_pos_weight: 100.0
+  warmup_epochs: 5
+  grad_clip_norm: 1.0
+  image_size: 384
+  num_workers: 8
+  prefetch_factor: 4
+
+# M2 MONET Feature (EfficientNet-B0 + MLP, progressive unfreeze)
+m2_monet_feature_baseline:
+  batch_size: 80
+  epochs: 30
+  patience: 10
+  learning_rate: 2.2e-4
+  encoder_lr_scale: 0.1
+  weight_decay: 1.0e-4
+  dropout: 0.3
+  freeze_encoder: false
+  unfreeze_after: 5
+  max_pos_weight: 100.0
+  warmup_epochs: 5
+  grad_clip_norm: 1.0
+  image_size: 384
+  num_workers: 8
+  prefetch_factor: 4
+
+# M3 Transformer (Swin-Tiny)
+m3_transformer_baseline:
+  batch_size: 96
+  epochs: 30
+  patience: 10
+  learning_rate: 8.0e-5
+  backbone_lr_scale: 0.1
+  weight_decay: 0.05
+  dropout: 0.3
+  max_pos_weight: 100.0
+  warmup_epochs: 5
+  grad_clip_norm: 1.0
+  image_size: 384
+  num_workers: 8
+  prefetch_factor: 4
+
+
+# M4 Multimodal Fusion (ConvNeXt-Tiny + MLP + Gated)
+m4_multimodal_fusion:
+  batch_size: 128
+  epochs: 40
+  patience: 10
+  learning_rate: 1.5e-4
+  backbone_lr_scale: 0.1
+  weight_decay: 1.0e-4
+  dropout: 0.3
+  freeze_encoder: false
+  unfreeze_after: 5
+  max_pos_weight: 100.0
+  warmup_epochs: 5
+  grad_clip_norm: 1.0
+  image_size: 384
+  num_workers: 8
+  prefetch_factor: 4

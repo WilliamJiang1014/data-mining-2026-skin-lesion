@@ -1,0 +1,6 @@
+type: constant
+backend: numpy
+class_name: ConstantRiskModel
+params:
+  score: 0.5
+

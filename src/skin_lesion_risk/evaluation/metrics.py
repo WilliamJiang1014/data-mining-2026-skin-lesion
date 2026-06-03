@@ -117,7 +117,7 @@ def partial_auc_high_sensitivity(
     order = np.argsort(xs)
     xs = xs[order]
     ys = ys[order]
-    raw_area = float(np.trapz(ys - min_tpr, xs))
+    raw_area = float(np.trapezoid(ys - min_tpr, xs)) if hasattr(np, "trapezoid") else float(np.trapz(ys - min_tpr, xs))
     max_area = 1.0 - min_tpr
     return max(0.0, min(1.0, raw_area / max_area if max_area > 0 else float("nan")))
 

@@ -15,7 +15,6 @@ data/processed/**
 data/external/**
 data/artifacts/**
 reports/figures/**
-reports/tables/**
 
 # Keep directory placeholders
 !data/raw/**/
@@ -31,3 +30,6 @@ reports/tables/**
 # OS / notebooks
 .DS_Store
 .ipynb_checkpoints/
+
+# Logs
+log/

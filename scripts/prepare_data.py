@@ -39,6 +39,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Build manifests, patient-level folds and fold-scoped preprocessors.")
     parser.add_argument("--isic-root", default="data/raw/isic2024_permissive")
     parser.add_argument("--pad-root", default="data/raw/pad_ufes_20")
+    parser.add_argument("--skip-pad", action="store_true", help="Skip PAD manifest build if data is not available.")
     parser.add_argument("--out-dir", default="data/processed")
     parser.add_argument("--reports-dir", default="reports")
     parser.add_argument("--folds", type=int, default=5)
@@ -60,7 +61,13 @@ def main() -> None:
     isic = build_isic_manifest(ROOT / args.isic_root)
     if args.max_samples:
         isic = stratified_sample(isic, args.max_samples, seed=args.seed)
-    pad = build_pad_manifest(ROOT / args.pad_root)
+
+    pad_root = ROOT / args.pad_root
+    if args.skip_pad or not (pad_root / "metadata.csv").exists():
+        pad = pd.DataFrame()
+        print(f"[prepare_data] Skipping PAD manifest (data not found or --skip-pad).")
+    else:
+        pad = build_pad_manifest(pad_root)
 
     isic_failures = validate_image_paths(
         isic,
@@ -68,12 +75,15 @@ def main() -> None:
         sample_size=args.image_check_sample_size,
         seed=args.seed,
     )
-    pad_failures = validate_image_paths(
-        pad,
-        mode=args.image_check,
-        sample_size=args.image_check_sample_size,
-        seed=args.seed,
-    )
+    if len(pad) > 0:
+        pad_failures = validate_image_paths(
+            pad,
+            mode=args.image_check,
+            sample_size=args.image_check_sample_size,
+            seed=args.seed,
+        )
+    else:
+        pad_failures = []
 
     folds = make_patient_level_folds(
         isic,
@@ -86,25 +96,27 @@ def main() -> None:
     fold_lookup = folds[folds["split"] == "test"][["sample_id", "fold"]].drop_duplicates("sample_id")
     isic = isic.drop(columns=["fold"], errors="ignore").merge(fold_lookup, on="sample_id", how="left")
     isic["fold"] = isic["fold"].fillna(-1).astype(int)
-    pad["fold"] = -1
+    if len(pad) > 0:
+        pad["fold"] = -1
 
     isic.to_csv(out_dir / "manifest_isic.csv", index=False)
-    pad.to_csv(out_dir / "manifest_pad.csv", index=False)
+    if len(pad) > 0:
+        pad.to_csv(out_dir / "manifest_pad.csv", index=False)
     folds.to_csv(out_dir / "folds_isic.csv", index=False)
 
     build_preprocessors(isic, folds, preprocessor_dir, args.rare_min_count)
     write_split_stats(isic, folds, pad, reports_dir / "tables" / "split_stats.csv")
-    write_quality_reports(isic, pad, isic_failures, pad_failures, reports_dir)
+    write_quality_reports(isic, pad, isic_failures, pad_failures, reports_dir, skip_pad=len(pad) == 0)
 
     manifest_summary = {
         "isic_manifest": str(out_dir / "manifest_isic.csv"),
-        "pad_manifest": str(out_dir / "manifest_pad.csv"),
+        "pad_manifest": str(out_dir / "manifest_pad.csv") if len(pad) > 0 else None,
         "folds": str(out_dir / "folds_isic.csv"),
         "preprocessors": str(preprocessor_dir),
         "isic_samples": int(len(isic)),
         "pad_samples": int(len(pad)),
         "isic_positive": int(isic["target"].sum()),
-        "pad_positive": int(pad["target"].sum()),
+        "pad_positive": int(pad["target"].sum()) if len(pad) > 0 else 0,
         "image_check": args.image_check,
         "isic_image_failures": len(isic_failures),
         "pad_image_failures": len(pad_failures),
@@ -233,6 +245,8 @@ def write_quality_reports(
     isic_failures: list[dict[str, str]],
     pad_failures: list[dict[str, str]],
     reports_dir: Path,
+    *,
+    skip_pad: bool = False,
 ) -> None:
     lines = [
         "columns_removed_as_leakage: " + ", ".join(sorted(LEAKAGE_COLUMNS)),
@@ -244,6 +258,13 @@ def write_quality_reports(
         manifest_quality_summary(isic, extra_lines=lines),
         encoding="utf-8",
     )
+
+    if skip_pad:
+        (reports_dir / "data_quality_pad.md").write_text(
+            "# PAD-UFES-20 Quality Report\n\nSkipped: PAD data not available.\n",
+            encoding="utf-8",
+        )
+        return
 
     pad_lines = [f"invalid_images_checked_or_missing: {len(pad_failures)}"]
     if pad_failures:

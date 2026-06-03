@@ -5,11 +5,7 @@ from typing import Any
 
 import yaml
 
-from skin_lesion_risk.models.adapters.graph import LGKEGNNModelAdapter
-from skin_lesion_risk.models.adapters.image import PlaceholderImageModel
-from skin_lesion_risk.models.adapters.monet import PlaceholderMonetFeatureModel
-from skin_lesion_risk.models.adapters.multimodal import PlaceholderMultimodalModel
-from skin_lesion_risk.models.adapters.tabular import ConstantRiskModel, PlaceholderTabularModel
+from skin_lesion_risk.models.adapters.tabular import ConstantRiskModel, LightGBMTabularModel, PlaceholderTabularModel
 from skin_lesion_risk.models.base import BaseModelAdapter
 from skin_lesion_risk.models.registry import ModelRegistry
 
@@ -45,9 +41,24 @@ def default_registry() -> ModelRegistry:
     registry = ModelRegistry()
     registry.register("constant", ConstantRiskModel)
     registry.register("tabular", PlaceholderTabularModel)
-    registry.register("image", PlaceholderImageModel)
-    registry.register("image_transformer", PlaceholderImageModel)
-    registry.register("monet_feature", PlaceholderMonetFeatureModel)
-    registry.register("multimodal", PlaceholderMultimodalModel)
-    registry.register("graph_multimodal", LGKEGNNModelAdapter)
+    registry.register("tabular_lgbm", LightGBMTabularModel)
+
+    # Lazy imports for torch-dependent models — avoid forcing torch at import time
+    try:
+        from skin_lesion_risk.models.adapters.image import CNNImageModel, TransformerImageModel
+        from skin_lesion_risk.models.adapters.monet import MonetFeatureModel
+        from skin_lesion_risk.models.adapters.multimodal import MultimodalFusionModel
+
+        registry.register("image", CNNImageModel)
+        registry.register("image_transformer", TransformerImageModel)
+        registry.register("monet_feature", MonetFeatureModel)
+        registry.register("multimodal", MultimodalFusionModel)
+    except ImportError:
+        pass
+    try:
+        from skin_lesion_risk.models.adapters.graph import LGKEGNNModelAdapter
+
+        registry.register("graph_multimodal", LGKEGNNModelAdapter)
+    except ModuleNotFoundError:
+        pass
     return registry

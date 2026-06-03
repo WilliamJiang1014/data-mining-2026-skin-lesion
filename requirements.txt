@@ -1,0 +1,32 @@
+# Skin Lesion Risk - Python Dependencies
+# Python 3.11 | conda env: skin
+
+# 环境创建：
+#   conda create -n skin python=3.11 -y && conda activate skin
+#   pip install -r requirements.txt
+
+# CUDA 说明：
+#   默认 pip install torch 是 CPU-only，图像/图模型需要 GPU。
+#   检查：python -c "import torch; print(torch.cuda.is_available())"
+#   安装 CUDA 版本：
+#     pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+#   或 conda：
+#     conda install pytorch torchvision pytorch-cuda=12.4 -c pytorch -c nvidia
+
+# Core
+numpy>=1.23
+pandas>=1.5
+pyyaml>=6.0
+
+# ML
+scikit-learn>=1.2
+torch>=2.0
+torchvision>=0.15
+pillow>=10.0
+pyarrow>=12.0
+lightgbm>=4.0
+joblib>=1.2
+timm>=0.9
+
+# Dev
+pytest>=7.0
