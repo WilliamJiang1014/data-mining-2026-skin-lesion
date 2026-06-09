@@ -1,0 +1,196 @@
+\begin{thebibliography}{22}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Ahammed et~al.(2025)Ahammed, Cui, Lu, and Yap]{ahammed2025metadata}
+Sakib Ahammed, Xia Cui, Wenqi Lu, and Moi~Hoon Yap.
+\newblock Skin lesion classification using dermoscopic images and clinical
+  metadata: Insights from multimodal models.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
+  and Pattern Recognition Workshops}, pages 222--230, 2025.
+\newblock \doi{10.1109/CVPRW67362.2025.00027}.
+
+\bibitem[Brody et~al.(2022)Brody, Alon, and Yahav]{brody2022gatv2}
+Shaked Brody, Uri Alon, and Eran Yahav.
+\newblock How attentive are graph attention networks?
+\newblock In \emph{International Conference on Learning Representations}, 2022.
+
+\bibitem[Cassidy et~al.(2022)Cassidy, Kendrick, Brodzicki, Jaworek-Korjakowska,
+  and Yap]{cassidy2022isic}
+Bill Cassidy, Connah Kendrick, Andrzej Brodzicki, Joanna Jaworek-Korjakowska,
+  and Moi~Hoon Yap.
+\newblock Analysis of the isic image datasets: Usage, benchmarks and
+  recommendations.
+\newblock \emph{Medical Image Analysis}, 75:\penalty0 102305, 2022.
+\newblock \doi{10.1016/j.media.2021.102305}.
+
+\bibitem[Daneshjou et~al.(2022)Daneshjou, Vodrahalli, Novoa, Jenkins, Liang,
+  Rotemberg, Ko, Swetter, Bailey, Gevaert, Mukherjee, Phung, Yekrang, Fong,
+  Sahasrabudhe, Allerup, Okata-Karigane, Zou, and
+  Chiou]{daneshjou2022disparities}
+Roxana Daneshjou, Kailas Vodrahalli, Roberto~A. Novoa, Melissa Jenkins, Weixin
+  Liang, Veronica Rotemberg, Justin Ko, Susan~M. Swetter, Elizabeth~E. Bailey,
+  Olivier Gevaert, Pranav Mukherjee, Michelle Phung, Kiana Yekrang, Benson
+  Fong, Rushikesh Sahasrabudhe, Julie A.~C. Allerup, Ulli Okata-Karigane, James
+  Zou, and Alexander~S. Chiou.
+\newblock Disparities in dermatology ai performance on a diverse, curated
+  clinical image set.
+\newblock \emph{Science Advances}, 8\penalty0 (31):\penalty0 eabq6147, 2022.
+\newblock \doi{10.1126/sciadv.abq6147}.
+
+\bibitem[Esteva et~al.(2017)Esteva, Kuprel, Novoa, Ko, Swetter, Blau, and
+  Thrun]{esteva2017dermatologist}
+Andre Esteva, Brett Kuprel, Roberto~A. Novoa, Justin Ko, Susan~M. Swetter,
+  Helen~M. Blau, and Sebastian Thrun.
+\newblock Dermatologist-level classification of skin cancer with deep neural
+  networks.
+\newblock \emph{Nature}, 542\penalty0 (7639):\penalty0 115--118, 2017.
+\newblock \doi{10.1038/nature21056}.
+
+\bibitem[Groh et~al.(2021)Groh, Harris, Soenksen, Lau, Han, Kim, Koochek, and
+  Badri]{groh2021fitzpatrick17k}
+Matthew Groh, Caleb Harris, Luis Soenksen, Felix Lau, Rachel Han, Aerin Kim,
+  Arash Koochek, and Omar Badri.
+\newblock Evaluating deep neural networks trained on clinical images in
+  dermatology with the fitzpatrick 17k dataset.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision
+  and Pattern Recognition Workshops}, pages 1820--1828, 2021.
+
+\bibitem[Hamilton et~al.(2017)Hamilton, Ying, and
+  Leskovec]{hamilton2017graphsage}
+William~L. Hamilton, Rex Ying, and Jure Leskovec.
+\newblock Inductive representation learning on large graphs.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~30, 2017.
+
+\bibitem[{International Skin Imaging Collaboration}()]{isicpadcollection}
+{International Skin Imaging Collaboration}.
+\newblock {PAD-UFES-20 Collection Page}.
+\newblock \url{https://api.isic-archive.com/collections/406/}.
+
+\bibitem[{International Skin Imaging Collaboration}(2024)]{isicdata2024}
+{International Skin Imaging Collaboration}.
+\newblock {ISIC Challenge Datasets: SLICE-3D and SLICE-3D Permissive}.
+\newblock \url{https://challenge.isic-archive.com/data/}, 2024.
+
+\bibitem[{Kaggle} and {International Skin Imaging
+  Collaboration}(2024)]{isic2024challenge}
+{Kaggle} and {International Skin Imaging Collaboration}.
+\newblock Isic 2024 - skin cancer detection with 3d-tbp.
+\newblock \url{https://www.kaggle.com/competitions/isic-2024-challenge}, 2024.
+\newblock Accessed 2026-06-03.
+
+\bibitem[{Kaggle and ISIC}(2024)]{kaggleisic2024}
+{Kaggle and ISIC}.
+\newblock {ISIC 2024 - Skin Cancer Detection with 3D-TBP}.
+\newblock \url{https://www.kaggle.com/competitions/isic-2024-challenge}, 2024.
+
+\bibitem[Kim et~al.(2024)Kim, Gadgil, DeGrave, Omiye, Cai, Daneshjou, and
+  Lee]{kim2024monet}
+Chanwoo Kim, Soham~U. Gadgil, Alex~J. DeGrave, Jesutofunmi~A. Omiye, Zhuo~Ran
+  Cai, Roxana Daneshjou, and Su-In Lee.
+\newblock Transparent medical image ai via an image-text foundation model
+  grounded in medical literature.
+\newblock \emph{Nature Medicine}, 30\penalty0 (4):\penalty0 1154--1165, 2024.
+\newblock \doi{10.1038/s41591-024-02887-x}.
+
+\bibitem[Kurtansky et~al.(2024)Kurtansky, D'Alessandro, Gillis, Betz-Stablein,
+  Cerminara, Garcia, Girundi, Goessinger, Gottfrois, Guitera, Halpern, Jakrot,
+  Kittler, Kose, Liopyris, Malvehy, Mar, Martin, Mathew,
+  et~al.]{kurtansky2024slice3d}
+Nicholas~R. Kurtansky, Brian~M. D'Alessandro, Maura~C. Gillis, Brigid~M.
+  Betz-Stablein, Scott~E. Cerminara, Rita Garcia, Maria~A. Girundi, Elise~V.
+  Goessinger, Pierre Gottfrois, Pascale Guitera, Allan~C. Halpern, Veronica
+  Jakrot, Harald Kittler, Kivanc Kose, Konstantinos Liopyris, Josep Malvehy,
+  Victoria~J. Mar, Laura~K. Martin, Tharakeswari Mathew, et~al.
+\newblock The slice-3d dataset: 400,000 skin lesion image crops extracted from
+  3d tbp for skin cancer detection.
+\newblock \emph{Scientific Data}, 11\penalty0 (1):\penalty0 884, 2024.
+\newblock \doi{10.1038/s41597-024-03743-w}.
+
+\bibitem[Liu et~al.(2021)Liu, You, Wu, Ge, Wang, and Sun]{liu2021kgae}
+Fenglin Liu, Chenyu You, Xian Wu, Shen Ge, Sheng Wang, and Xu~Sun.
+\newblock Auto-encoding knowledge graph for unsupervised medical report
+  generation.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~34, pages 16266--16279, 2021.
+
+\bibitem[Pacheco et~al.(2020{\natexlab{a}})Pacheco, Lima, Salom{\~a}o,
+  et~al.]{pacheco2020padufes20}
+A.~G.~C. Pacheco, G.~R. Lima, A.~S. Salom{\~a}o, et~al.
+\newblock {PAD-UFES-20: A Skin Lesion Dataset Composed of Patient Data and
+  Clinical Images Collected from Smartphones}.
+\newblock \emph{Data in Brief}, 32:\penalty0 106221, 2020{\natexlab{a}}.
+
+\bibitem[Pacheco et~al.(2020{\natexlab{b}})Pacheco, Lima, Salom{\~a}o,
+  et~al.]{pacheco2020padufes20data}
+A.~G.~C. Pacheco, G.~R. Lima, A.~S. Salom{\~a}o, et~al.
+\newblock {PAD-UFES-20: A Skin Lesion Dataset Composed of Patient Data and
+  Clinical Images Collected from Smartphones}.
+\newblock Mendeley Data, 2020{\natexlab{b}}.
+\newblock URL \url{https://doi.org/10.17632/zr7vgbcyr2.1}.
+
+\bibitem[Pacheco et~al.(2020{\natexlab{c}})Pacheco, Lima, Salom{\~a}o,
+  Krohling, Biral, de~Angelo, Alves~Jr., Esgario, Simora, Castro, Rodrigues,
+  Frasson, Krohling, Hemerly, von Wangenheim, Maciel, and
+  Tavares]{pacheco2020padufes}
+Andre G.~C. Pacheco, Gustavo~R. Lima, Amanda~S. Salom{\~a}o, Breno Krohling,
+  Igor~P. Biral, Gabriel~G. de~Angelo, Fabio C.~R. Alves~Jr., Jos{\'e} G.~M.
+  Esgario, Alana~C. Simora, Pedro B.~C. Castro, Felipe~B. Rodrigues, Pedro
+  H.~L. Frasson, Renato~A. Krohling, Alexandre~S. Hemerly, Aldo von Wangenheim,
+  Rodrigo~P. Maciel, and Jo{\~a}o M. R.~S. Tavares.
+\newblock Pad-ufes-20: A skin lesion dataset composed of patient data and
+  clinical images collected from smartphones.
+\newblock \emph{Data in Brief}, 32:\penalty0 106221, 2020{\natexlab{c}}.
+\newblock \doi{10.1016/j.dib.2020.106221}.
+
+\bibitem[Rotemberg et~al.(2021)Rotemberg, Kurtansky, Betz-Stablein, Caffery,
+  Chousakos, Codella, Combalia, Dusza, Guitera, Gutman, Halpern, Helba,
+  Kittler, Kose, Langer, Liopyris, Malvehy, Musthaq, Nanda, Reiter, Shih,
+  Stratigos, Tschandl, Weber, and Soyer]{rotemberg2021patient}
+Veronica Rotemberg, Nicholas Kurtansky, Brigid Betz-Stablein, Liam Caffery,
+  Emmanouil Chousakos, Noel Codella, Marc Combalia, Stephen Dusza, Pascale
+  Guitera, David Gutman, Allan Halpern, Brian Helba, Harald Kittler, Kivanc
+  Kose, Steve Langer, Konstantinos Liopyris, Josep Malvehy, Shenara Musthaq,
+  Jabpani Nanda, Ofer Reiter, George Shih, Alexander Stratigos, Philipp
+  Tschandl, Jochen Weber, and H.~Peter Soyer.
+\newblock A patient-centric dataset of images and metadata for identifying
+  melanomas using clinical context.
+\newblock \emph{Scientific Data}, 8\penalty0 (1):\penalty0 34, 2021.
+\newblock \doi{10.1038/s41597-021-00815-z}.
+
+\bibitem[Tschandl et~al.(2018)Tschandl, Rosendahl, and
+  Kittler]{tschandl2018ham10000}
+Philipp Tschandl, Cliff Rosendahl, and Harald Kittler.
+\newblock The ham10000 dataset, a large collection of multi-source
+  dermatoscopic images of common pigmented skin lesions.
+\newblock \emph{Scientific Data}, 5:\penalty0 180161, 2018.
+\newblock \doi{10.1038/sdata.2018.161}.
+
+\bibitem[Veli{\v{c}}kovi{\'c} et~al.(2018)Veli{\v{c}}kovi{\'c}, Cucurull,
+  Casanova, Romero, Li{\`o}, and Bengio]{velickovic2018gat}
+Petar Veli{\v{c}}kovi{\'c}, Guillem Cucurull, Arantxa Casanova, Adriana Romero,
+  Pietro Li{\`o}, and Yoshua Bengio.
+\newblock Graph attention networks.
+\newblock In \emph{International Conference on Learning Representations}, 2018.
+
+\bibitem[Wang et~al.(2022)Wang, Feng, Zhang, Zhou, Liu, Goh, and
+  Zhen]{wang2022amfam}
+Yan Wang, Yangqin Feng, Lei Zhang, Joey~Tianyi Zhou, Yong Liu, Rick Siow~Mong
+  Goh, and Liangli Zhen.
+\newblock Adversarial multimodal fusion with attention mechanism for skin
+  lesion classification using clinical and dermoscopic images.
+\newblock \emph{Medical Image Analysis}, 81:\penalty0 102535, 2022.
+\newblock \doi{10.1016/j.media.2022.102535}.
+
+\bibitem[Yap et~al.(2018)Yap, Yolland, and Tschandl]{yap2018multimodal}
+Jordan Yap, William Yolland, and Philipp Tschandl.
+\newblock Multimodal skin lesion classification using deep learning.
+\newblock \emph{Experimental Dermatology}, 27\penalty0 (11):\penalty0
+  1261--1267, 2018.
+\newblock \doi{10.1111/exd.13777}.
+
+\end{thebibliography}
