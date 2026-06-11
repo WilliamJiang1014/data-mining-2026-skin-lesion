@@ -33,3 +33,8 @@ reports/figures/**
 
 # Logs
 log/
+reports/smoke/
+
+# Demo assets: commit curated files; ignore accidental large drops
+demo/assets/**/*.ckpt
+demo/assets/**/full_*.csv

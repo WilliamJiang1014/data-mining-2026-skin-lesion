@@ -30,3 +30,7 @@ timm>=0.9
 
 # Dev
 pytest>=7.0
+
+# Demo
+streamlit[pdf]>=1.32
+plotly>=5.18

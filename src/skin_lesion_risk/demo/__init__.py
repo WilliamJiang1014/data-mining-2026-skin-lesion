@@ -1,2 +1,2 @@
-"""Interactive demo package placeholder."""
+"""Interactive Streamlit demo package."""
 

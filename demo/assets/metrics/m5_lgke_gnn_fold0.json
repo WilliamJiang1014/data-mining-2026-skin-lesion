@@ -1,0 +1,8 @@
+{
+  "fold": 0,
+  "model": "m5_lgke_gnn",
+  "thresholds": {
+    "youden": 0.5367896556854248,
+    "sensitivity_at_least_0_90": 0.09719926118850708
+  }
+}

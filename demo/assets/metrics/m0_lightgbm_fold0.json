@@ -1,0 +1,8 @@
+{
+  "fold": 0,
+  "model": "m0_lightgbm",
+  "thresholds": {
+    "youden": 0.0063540272281084045,
+    "sensitivity_at_least_0_90": 0.0019620745375605077
+  }
+}

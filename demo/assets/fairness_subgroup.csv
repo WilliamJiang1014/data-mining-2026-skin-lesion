@@ -1,0 +1,22 @@
+group_variable,subgroup,n_samples,n_positive,auroc,sensitivity,fnr,notes
+性别,UNK,2319,5,0.8971,0.6000,0.4000,阳性数很少，谨慎解释
+性别,female,61986,68,0.8978,0.8382,0.1618,ISIC test folds
+性别,male,153172,221,0.9445,0.9367,0.0633,ISIC test folds
+年龄段,<40,16363,6,0.9124,0.6667,0.3333,阳性数很少，谨慎解释
+年龄段,40-59,77975,78,0.9282,0.8846,0.1154,ISIC test folds
+年龄段,60-79,109754,180,0.9318,0.9222,0.0778,ISIC test folds
+年龄段,>=80,12180,29,0.9449,0.9310,0.0690,ISIC test folds
+年龄段,UNK,1205,1,0.9925,1.0000,0.0000,阳性数极少，不作强结论
+解剖部位,UNK,3496,0,NA,NA,NA,无阳性样本，无法计算
+解剖部位,anterior torso,46827,54,0.9011,0.8889,0.1111,ISIC test folds
+解剖部位,head/neck,5924,65,0.8545,0.9846,0.0154,ISIC test folds
+解剖部位,lower extremity,57272,63,0.9353,0.8730,0.1270,ISIC test folds
+解剖部位,posterior torso,65272,68,0.9367,0.9118,0.0882,ISIC test folds
+解剖部位,upper extremity,38686,44,0.9235,0.8636,0.1364,ISIC test folds
+Fitzpatrick 类型（PAD）,1.0,153,120,0.5439,0.0750,0.9250,PAD ensemble；阳性比例很高
+Fitzpatrick 类型（PAD）,2.0,876,663,0.4614,0.0302,0.9698,PAD ensemble；阈值迁移后召回很低
+Fitzpatrick 类型（PAD）,3.0,392,272,0.4795,0.0625,0.9375,PAD ensemble；阈值迁移后召回很低
+Fitzpatrick 类型（PAD）,4.0,62,29,0.5444,0.1379,0.8621,PAD ensemble；样本数较少
+Fitzpatrick 类型（PAD）,5.0,10,5,0.1600,0.0000,1.0000,PAD ensemble；样本极少，不作稳定结论
+Fitzpatrick 类型（PAD）,6.0,1,0,NA,NA,NA,PAD ensemble；无阳性样本
+Fitzpatrick 类型（PAD）,UNK,804,0,NA,NA,NA,PAD ensemble；无阳性样本

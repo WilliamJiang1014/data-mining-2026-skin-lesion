@@ -1,0 +1,25 @@
+{
+  "fold": 0,
+  "sample_size": 100,
+  "sample_seed": 2026,
+  "models": [
+    {
+      "key": "m0_lightgbm",
+      "label": "M0 LightGBM",
+      "predictions": "predictions/m0_lightgbm_fold0.csv",
+      "metrics": "metrics/m0_lightgbm_fold0.json"
+    },
+    {
+      "key": "m4_multimodal_fusion",
+      "label": "M4 多模态融合",
+      "predictions": "predictions/m4_multimodal_fusion_fold0.csv",
+      "metrics": "metrics/m4_multimodal_fusion_fold0.json"
+    },
+    {
+      "key": "m5_lgke_gnn",
+      "label": "M5 LGKE-GNN",
+      "predictions": "predictions/m5_lgke_gnn_fold0.csv",
+      "metrics": "metrics/m5_lgke_gnn_fold0.json"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "fold": 0,
+  "model": "m4_multimodal_fusion",
+  "thresholds": {
+    "youden": 0.004329681396484375,
+    "sensitivity_at_least_0_90": 0.004680633544921875
+  }
+}

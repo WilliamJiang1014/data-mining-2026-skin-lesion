@@ -1,0 +1,13 @@
+{
+  "model": "m5_lgke_gnn",
+  "variant": "seedfocusbjb2_s9701_hd128_l2_lr18e4_do015",
+  "folds": 5,
+  "pauc_tpr80_pct": 77.94,
+  "pauc_tpr80_std_pct": 7.48,
+  "auprc_pct": 7.08,
+  "auprc_std_pct": 3.97,
+  "auroc_pct": 94.15,
+  "auroc_std_pct": 1.6,
+  "sensitivity_pct": 90.88,
+  "specificity_pct": 81.29
+}

@@ -17,8 +17,8 @@
 ├── reports/
 │   ├── figures/           # 报告图
 │   └── tables/            # 报告表
-├── scripts/               # 命令行入口
-├── app/                   # 交互式展示预留入口
+├── scripts/               # 命令行入口（含 run_demo.sh）
+├── demo/assets/           # Streamlit Demo 预计算结果快照
 ├── src/skin_lesion_risk/  # Python 包源码
 │   ├── data/              # manifest schema 和数据处理工具
 │   ├── evaluation/        # 指标、阈值、子群公平性
@@ -26,7 +26,7 @@
 │   ├── models/            # 模型工厂和适配器
 │   ├── pipelines/         # build_manifest、build_graph、train、evaluate
 │   ├── reporting/         # 结果表和图生成
-│   ├── demo/              # demo 应用内部模块
+│   ├── demo/              # Streamlit Demo 入口（app.py、data_loader.py）
 │   └── utils/             # 随机种子等通用工具
 └── tests/                 # 单元测试和 smoke tests
 ```
