@@ -1,10 +1,3 @@
-% !TeX program = xelatex
-% Overleaf 使用说明：
-% 1. 将本文件上传为 main.tex。
-% 2. Overleaf 编译器选择 XeLaTeX。
-% 3. 本文件已内置参考文献条目，不依赖 references.bib。
-% 4. 本版重点更新实验设计、可落地数据处理管线、图结构/GNN 基线与量化贡献表。
-
 \documentclass[UTF8,a4paper,10pt,twocolumn,fontset=fandol]{ctexart}
 
 % ---------- 页面与字体 ----------
@@ -336,7 +329,63 @@ M5 & \modelname{}（KGAE-inspired） & 图像 + 元数据 + 图 & 本文方法�
     \item 模型选择：阈值、早停、超参数和集成权重只由验证集决定，测试集只用于最终评估；
     \item 外部验证：用内部最佳配置在 \isic{} 训练折重训后，直接评估 \pad{}；若进行目标域阈值重调，则作为独立实验报告。
 \end{itemize}
-表\ref{tab:split} 给出由 \texttt{scripts/prepare\_data.py} 自动导出的真实统计。
+\begin{table*}[t]
+\centering
+\small
+\renewcommand{\arraystretch}{1.38}
+\setlength{\extrarowheight}{1.5pt}
+\setlength{\tabcolsep}{3pt}
+\caption{主实验模型对比。M0--M4 为基线模型，M5 为本文提出的方法。所有指标均以百分比展示，数值为 5 折患者级测试集均值 $\pm$ 标准差。}
+\label{tab:main_results}
+
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llccccc}
+\toprule
+编号 & 模型 & pAUC (\%) & AUPRC (\%) & AUROC (\%) & Sens. (\%) & Spec. (\%) \\
+\midrule
+M0 & Metadata LightGBM
+& \mbox{73.03 $\pm$ 7.37}
+& \mbox{6.67 $\pm$ 2.70}
+& \mbox{93.24 $\pm$ 1.68}
+& \mbox{\textbf{91.75 $\pm$ 3.18}}
+& \mbox{76.77 $\pm$ 6.04} \\
+
+M1 & CNN (EfficientNet-B0)
+& \mbox{54.08 $\pm$ 7.31}
+& \mbox{4.41 $\pm$ 2.02}
+& \mbox{87.34 $\pm$ 1.85}
+& \mbox{85.14 $\pm$ 15.15}
+& \mbox{65.37 $\pm$ 17.56} \\
+
+M2 & MONET Feature
+& \mbox{58.92 $\pm$ 8.37}
+& \mbox{4.09 $\pm$ 1.92}
+& \mbox{88.26 $\pm$ 2.65}
+& \mbox{79.42 $\pm$ 6.67}
+& \mbox{80.89 $\pm$ 4.38} \\
+
+M3 & Transformer (Swin-Tiny)
+& \mbox{64.18 $\pm$ 6.53}
+& \mbox{4.71 $\pm$ 1.24}
+& \mbox{90.11 $\pm$ 2.32}
+& \mbox{84.86 $\pm$ 7.43}
+& \mbox{77.56 $\pm$ 8.62} \\
+
+M4 & Late/Gated Fusion
+& \mbox{\underline{73.93 $\pm$ 7.41}}
+& \mbox{\textbf{7.65 $\pm$ 4.87}}
+& \mbox{\underline{93.28 $\pm$ 1.88}}
+& \mbox{86.78 $\pm$ 5.52}
+& \mbox{\textbf{84.45 $\pm$ 9.53}} \\
+
+M5 & \modelname{}
+& \mbox{\textbf{77.94 $\pm$ 7.48}}
+& \mbox{\underline{7.08 $\pm$ 3.97}}
+& \mbox{\textbf{94.15 $\pm$ 1.60}}
+& \mbox{\underline{90.88 $\pm$ 5.29}}
+& \mbox{\underline{81.29 $\pm$ 7.78}} \\
+\bottomrule
+\end{tabular*}
+\end{table*}
 
 \begin{table}[H]
 \centering
@@ -372,6 +421,7 @@ Balanced Accuracy 与 ECE 定义如下：
     \mathrm{ECE}=\sum_{b=1}^{B}\frac{|S_b|}{n}\left|\mathrm{acc}(S_b)-\mathrm{conf}(S_b)\right|.
 \end{equation}
 
+
 \subsection{公平性指标}
 设 $G$ 为性别、年龄段、解剖部位或 Fitzpatrick 类型集合。公平性分析报告：
 \begin{align}
@@ -381,13 +431,14 @@ Balanced Accuracy 与 ECE 定义如下：
 \end{align}
 \isic{} 主数据通常没有完整 Fitzpatrick 字段，因此 Fitzpatrick 类型主要在 \pad{} 外部验证中报告。若某子群阳性数少于预设阈值（如 10），只展示样本数和置信区间，不做强结论。
 
+
+
 \subsection{统计显著性检验}
 \begin{itemize}
     \item AUROC、AUPRC、pAUC、BACC 使用按患者 bootstrap 的 95\% 置信区间；
     \item 同一测试折上模型差异使用 paired bootstrap；AUROC 可补充 DeLong 检验；
     \item 固定阈值下的错误差异使用 McNemar 检验；
     \item 多模型多指标比较采用 Holm--Bonferroni 校正；
-    \item 所有统计结论均由固定评估程序导出的 \texttt{metrics.json} 和 \texttt{stats.csv} 支撑。
 \end{itemize}
 
 \subsection{实验矩阵}
@@ -402,9 +453,13 @@ Balanced Accuracy 与 ECE 定义如下：
 
 
 \section{结果与分析}
-本节报告患者级内部测试、跨数据集泛化和子群稳定性。M0--M4 作为表格、图像和常规多模态融合基线，M5 为本文提出的 \modelname{}。除特别说明外，所有结论均基于五折患者级测试集均值与标准差；模型选择和阈值确定均在验证集完成，测试集仅用于最终评估。
+本节报告患者级内部测试、跨数据集泛化和子群稳定性三个层面的实验结果。M0--M4 作为表格模型、图像模型和常规多模态融合模型的基线，M5 为本文提出的 \modelname{}。
 
-\begin{figure}[t]
+其中，M0 用于衡量仅依赖临床元数据时的判别能力，M1--M3 用于比较不同视觉编码器在 3D-TBP 病灶裁剪图像上的表现，M4 用于检验图像与元数据在样本级融合后的增益，M5 则进一步引入患者上下文、属性节点、视觉近邻和知识原型，以评估显式图结构是否能够带来额外收益。除特别说明外，所有结论均基于五折患者级测试集的均值与标准差。患者级划分保证同一患者的病灶不会同时出现在训练集和测试集中，从而降低由患者身份或同次采集上下文带来的信息泄漏风险。模型选择、早停、超参数筛选和分类阈值确定均在验证集完成，测试集仅用于最终评估；因此，本节报告的测试性能反映的是模型在未见患者上的泛化能力，而不是对测试集阈值或模型配置进行后验调节后的结果。
+
+结果分析按照由内到外的顺序展开。在内部患者级测试集上比较 M0--M5 的 pAUC、AUPRC、AUROC、Sensitivity 和 Specificity，重点观察 \modelname{} 是否在高灵敏度筛查区域取得更优风险排序。通过 PAD-UFES-20 外部验证分析模型从 ISIC 2024 SLICE-3D Permissive 迁移到智能手机临床图像域时的性能变化，以检验模型是否存在明显域偏移。最后，按性别、年龄段和解剖部位报告子群指标，用于评估模型在不同人群和病灶位置上的稳定性。
+
+\begin{figure*}[t]
     \centering
     \includegraphics[
         width=\linewidth,
@@ -413,7 +468,7 @@ Balanced Accuracy 与 ECE 定义如下：
     ]{fig/main_results_forest.pdf}
 \caption{各基线方法与本文 \modelname{} 在患者级内部测试集上的性能比较。点表示五折交叉验证的平均值，水平误差线表示标准差。}
     \label{fig:main_results_forest}
-\end{figure}
+\end{figure*}
 
 \subsection{内部患者级测试}
 
@@ -477,62 +532,62 @@ Balanced Accuracy 与 ECE 定义如下：
 % \end{tabularx}
 % \end{table*}
 
-\begin{table*}[t]
-\centering
-\small
-\renewcommand{\arraystretch}{1.22}
-\setlength{\tabcolsep}{3pt}
-\caption{主实验模型对比。M0--M4 为基线模型，M5 为本文提出的方法。所有指标均以百分比展示，数值为 5 折患者级测试集均值 $\pm$ 标准差。}
-\label{tab:main_results}
+% \begin{table*}[t]
+% \centering
+% \small
+% \renewcommand{\arraystretch}{1.22}
+% \setlength{\tabcolsep}{3pt}
+% \caption{主实验模型对比。M0--M4 为基线模型，M5 为本文提出的方法。所有指标均以百分比展示，数值为 5 折患者级测试集均值 $\pm$ 标准差。}
+% \label{tab:main_results}
 
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llccccc}
-\toprule
-编号 & 模型 & pAUC (\%) & AUPRC (\%) & AUROC (\%) & Sens. (\%) & Spec. (\%) \\
-\midrule
-M0 & Metadata LightGBM
-& \mbox{73.03 $\pm$ 7.37}
-& \mbox{6.67 $\pm$ 2.70}
-& \mbox{93.24 $\pm$ 1.68}
-& \mbox{\textbf{91.75 $\pm$ 3.18}}
-& \mbox{76.77 $\pm$ 6.04} \\
+% \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llccccc}
+% \toprule
+% 编号 & 模型 & pAUC (\%) & AUPRC (\%) & AUROC (\%) & Sens. (\%) & Spec. (\%) \\
+% \midrule
+% M0 & Metadata LightGBM
+% & \mbox{73.03 $\pm$ 7.37}
+% & \mbox{6.67 $\pm$ 2.70}
+% & \mbox{93.24 $\pm$ 1.68}
+% & \mbox{\textbf{91.75 $\pm$ 3.18}}
+% & \mbox{76.77 $\pm$ 6.04} \\
 
-M1 & CNN (EfficientNet-B0)
-& \mbox{54.08 $\pm$ 7.31}
-& \mbox{4.41 $\pm$ 2.02}
-& \mbox{87.34 $\pm$ 1.85}
-& \mbox{85.14 $\pm$ 15.15}
-& \mbox{65.37 $\pm$ 17.56} \\
+% M1 & CNN (EfficientNet-B0)
+% & \mbox{54.08 $\pm$ 7.31}
+% & \mbox{4.41 $\pm$ 2.02}
+% & \mbox{87.34 $\pm$ 1.85}
+% & \mbox{85.14 $\pm$ 15.15}
+% & \mbox{65.37 $\pm$ 17.56} \\
 
-M2 & MONET Feature
-& \mbox{58.92 $\pm$ 8.37}
-& \mbox{4.09 $\pm$ 1.92}
-& \mbox{88.26 $\pm$ 2.65}
-& \mbox{79.42 $\pm$ 6.67}
-& \mbox{80.89 $\pm$ 4.38} \\
+% M2 & MONET Feature
+% & \mbox{58.92 $\pm$ 8.37}
+% & \mbox{4.09 $\pm$ 1.92}
+% & \mbox{88.26 $\pm$ 2.65}
+% & \mbox{79.42 $\pm$ 6.67}
+% & \mbox{80.89 $\pm$ 4.38} \\
 
-M3 & Transformer (Swin-Tiny)
-& \mbox{64.18 $\pm$ 6.53}
-& \mbox{4.71 $\pm$ 1.24}
-& \mbox{90.11 $\pm$ 2.32}
-& \mbox{84.86 $\pm$ 7.43}
-& \mbox{77.56 $\pm$ 8.62} \\
+% M3 & Transformer (Swin-Tiny)
+% & \mbox{64.18 $\pm$ 6.53}
+% & \mbox{4.71 $\pm$ 1.24}
+% & \mbox{90.11 $\pm$ 2.32}
+% & \mbox{84.86 $\pm$ 7.43}
+% & \mbox{77.56 $\pm$ 8.62} \\
 
-M4 & Late/Gated Fusion
-& \mbox{\underline{73.93 $\pm$ 7.41}}
-& \mbox{\textbf{7.65 $\pm$ 4.87}}
-& \mbox{\underline{93.28 $\pm$ 1.88}}
-& \mbox{86.78 $\pm$ 5.52}
-& \mbox{\textbf{84.45 $\pm$ 9.53}} \\
+% M4 & Late/Gated Fusion
+% & \mbox{\underline{73.93 $\pm$ 7.41}}
+% & \mbox{\textbf{7.65 $\pm$ 4.87}}
+% & \mbox{\underline{93.28 $\pm$ 1.88}}
+% & \mbox{86.78 $\pm$ 5.52}
+% & \mbox{\textbf{84.45 $\pm$ 9.53}} \\
 
-M5 & \modelname{}
-& \mbox{\textbf{77.94 $\pm$ 7.48}}
-& \mbox{\underline{7.08 $\pm$ 3.97}}
-& \mbox{\textbf{94.15 $\pm$ 1.60}}
-& \mbox{\underline{90.88 $\pm$ 5.29}}
-& \mbox{\underline{81.29 $\pm$ 7.78}} \\
-\bottomrule
-\end{tabular*}
-\end{table*}
+% M5 & \modelname{}
+% & \mbox{\textbf{77.94 $\pm$ 7.48}}
+% & \mbox{\underline{7.08 $\pm$ 3.97}}
+% & \mbox{\textbf{94.15 $\pm$ 1.60}}
+% & \mbox{\underline{90.88 $\pm$ 5.29}}
+% & \mbox{\underline{81.29 $\pm$ 7.78}} \\
+% \bottomrule
+% \end{tabular*}
+% \end{table*}
 
 \modelname{} 在主指标 pAUC@TPR$\geq0.80$ 上取得最高结果，达到 $77.94\pm7.48$，相较最强 baseline M4 提升 4.01 个百分点。AUROC 也达到 $94.15\pm1.60$，表明患者上下文、属性关系和视觉近邻关系能够提升整体风险排序能力。AUPRC 方面，M5 为 $7.08\pm3.97$，低于 M4 的 $7.65\pm4.87$ 但显著高于图像单模态模型，说明在极端类别不均衡场景中，普通门控融合仍是强少数类排序基线，而图结构主要贡献体现在高灵敏度区间和总体判别性能。M0 的 sensitivity 最高，但 specificity 明显低于 M4 和 M5，提示仅提升召回率会引入更多假阳性。综合 pAUC、AUROC、sensitivity 和 specificity，\modelname{} 在内部患者级筛查设定下给出了更均衡的风险筛查性能。
 
@@ -543,7 +598,11 @@ M5 & \modelname{}
     \label{fig:m5_fold_profile}
 \end{figure*}
 
-图\ref{fig:m5_fold_profile} 展示了 \modelname{} 的折间稳定性。AUROC 在五折中均维持在较高水平，而 pAUC 的波动更明显，反映出高灵敏度区间对阳性样本数量和 fold 难度更敏感。FNR 在第 2 折最低，在第 4 折相对较高；ECE 的变化也表明不同测试折存在校准差异。因此，M5 的优势不能仅由单折结果解释，而应理解为在患者级五折协议下对高灵敏度排序、漏诊控制和校准稳定性的综合折中。
+图\ref{fig:m5_fold_profile} 展示了 \modelname{} 在五折患者级测试协议下的折间稳定性。总体来看，AUROC 在五个测试折中均维持在较高水平，说明模型在不同患者划分下都能够保持较稳定的整体判别能力，即能够较好地区分恶性与良性病灶。然而，pAUC 的波动比 AUROC 更明显，这表明高灵敏度区间的排序性能对测试折中的阳性样本数量、阳性病灶难度以及阴性样本分布更加敏感。由于筛查任务更关注 TPR 较高区域内的特异度保持能力，因此 pAUC 的折间变化比 AUROC 更能反映模型在真实高召回应用场景中的不确定性。
+
+从阈值相关指标看，FNR 在第 2 折最低，说明该折中模型在验证集确定的高灵敏度阈值下能够较好地控制漏诊；而第 4 折的 FNR 相对较高，提示不同患者子集之间可能存在病灶形态、解剖部位分布或阳性样本组成差异。换言之，即使模型在总体 AUROC 上保持稳定，固定阈值迁移到不同测试折时仍可能产生不同程度的漏检风险。与此同时，ECE 的变化说明不同测试折之间还存在校准差异，即模型输出的风险分数在不同患者分布下并不总是具有完全一致的概率解释。对于医学筛查场景而言，这一点尤其重要，因为风险分数不仅用于排序，也可能影响后续随访、复查或人工复核优先级。
+
+因此，M5 的优势不能仅由某一个测试折或某一个单一指标解释，而应理解为在患者级五折协议下对高灵敏度排序能力、漏诊控制能力和校准稳定性的综合折中。具体而言，\modelname{} 在多数折中保持较高 AUROC，说明其基础判别能力较稳定；在 pAUC 上取得较好平均表现，说明图结构上下文有助于高灵敏度筛查区间的风险排序；但 FNR 和 ECE 的折间波动也提示，模型在阈值迁移和概率校准方面仍存在改进空间。后续工作可进一步结合温度缩放、分子群校准或 fold-specific calibration 分析，以降低不同患者分布下的阈值敏感性。
 
 \subsection{跨数据集泛化}
 \begin{table}[H]
@@ -723,6 +782,7 @@ ISIC 预训练 + PAD-only fine-tune 表示 PAD 患者级 5 折目标域适配。
 \end{tabularx}
 \end{table*}
 
+
 \section{讨论}
 
 \textbf{1）关于 LGKE-GNN 的有效性。}
@@ -750,8 +810,6 @@ ISIC 预训练 + PAD-only fine-tune 表示 PAD 患者级 5 折目标域适配。
 
 \section{\modelname{} 实现细节、训练诊断与解释性分析}
 
-\subsection{张量接口与模块分解}
-\modelname{} 的实现位于 \texttt{src/skin\_lesion\_risk/models/adapters/graph.py}。输入图以 PyTorch tensor 字典表示，核心字段包括节点特征 \texttt{x}、边索引 \texttt{edge\_index}、边类型 \texttt{edge\_type}、边权 \texttt{edge\_weight}、病灶节点索引 \texttt{lesion\_indices} 以及训练/评估掩码。该设计避免依赖 PyG，使本地调试和 CUDA 训练共享同一套执行路径。模型由四个连续模块组成：输入投影、关系特异 GraphSAGE 聚合、知识原型注意力和二分类风险头。
 
 \begin{table}[H]
 \centering
@@ -933,7 +991,6 @@ Dropout & 0.15 \\
 PAD 目标域微调使用 ISIC 训练得到的 \modelname{} 权重初始化模型参数，然后在 PAD 患者级训练折继续优化。每个 PAD fold 中，PAD train 参与梯度更新，PAD validation 用于早停和阈值选择，PAD test 仅用于最终报告。该设置不同于零样本外部验证：它评估的是在目标域存在少量标注数据时，\modelname{} 是否能够完成域适配。
 
 PAD 目标域微调的结果应被理解为目标域适配能力，而不是零样本泛化能力。ISIC 与 PAD 在采集设备、背景、视角、图像分辨率和标签分布上存在明显差异，因此直接迁移时阈值和校准都会失效。使用 PAD 患者级训练折继续优化后，模型能够重新学习目标域的风险分数尺度，并利用 PAD validation 选择早停点和阈值。该实验说明 \modelname{} 的结构可以在目标域有少量标注数据时恢复判别能力，但真实跨域部署仍需要更系统的域泛化、校准迁移和多中心验证。
-
 
 
 \bibliographystyle{plainnat}
