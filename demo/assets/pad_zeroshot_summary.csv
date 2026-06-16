@@ -1,0 +1,10 @@
+metric,mean,std
+pauc_tpr80,0.1963,0.1925
+auprc,0.4885,0.1697
+auroc,0.4735,0.2664
+sensitivity,0.0567,0.0643
+specificity,0.7691,0.3268
+fnr,0.9433,0.0643
+brier,0.4390,0.0972
+ece,0.4335,0.1425
+bacc,0.4129,0.1353

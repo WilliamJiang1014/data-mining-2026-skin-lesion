@@ -15,6 +15,7 @@ REQUIRED_ASSET_FILES = (
     "m5_summary_snippet.json",
     "fairness_subgroup.csv",
     "graph_ablation_summary.csv",
+    "pad_zeroshot_summary.csv",
     "pad_adaptation_summary.csv",
     "figures/ml_pipeline.png",
     "figures/main_results_forest.png",
@@ -51,3 +52,15 @@ def test_demo_manifest_predictions_and_metrics_exist() -> None:
         metrics_rel = str(item.get("metrics", "")).strip()
         assert pred_rel and (ASSETS / pred_rel).exists(), f"missing predictions for {item.get('key')}"
         assert metrics_rel and (ASSETS / metrics_rel).exists(), f"missing metrics for {item.get('key')}"
+
+
+def test_pad_zeroshot_has_auroc_and_bacc() -> None:
+    df = pd.read_csv(ASSETS / "pad_zeroshot_summary.csv")
+    auroc = df[df["metric"] == "auroc"]
+    bacc = df[df["metric"] == "bacc"]
+    assert not auroc.empty, "pad_zeroshot_summary.csv missing auroc"
+    assert not bacc.empty, "pad_zeroshot_summary.csv missing bacc"
+    auroc_mean = float(auroc.iloc[0]["mean"])
+    bacc_mean = float(bacc.iloc[0]["mean"])
+    assert 0.4 <= auroc_mean <= 0.55, f"unexpected zero-shot auroc mean: {auroc_mean}"
+    assert 0.35 <= bacc_mean <= 0.5, f"unexpected zero-shot bacc mean: {bacc_mean}"

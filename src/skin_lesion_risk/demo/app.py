@@ -19,7 +19,9 @@ from skin_lesion_risk.demo.data_loader import (  # noqa: E402
     load_all_sample_models,
     load_m5_summary,
     load_main_results,
+    load_pad_domain_comparison,
     load_pad_adaptation,
+    load_sample_manifest,
     load_split_stats,
     load_table4,
 )
@@ -57,6 +59,7 @@ GRAPH_METRIC_LABELS = {
 PAD_METRIC_LABELS = {
     "auroc": "AUROC",
     "auprc": "AUPRC",
+    "bacc": "BACC",
     "sensitivity": "灵敏度",
     "specificity": "特异度",
     "fnr": "漏诊率 (FNR)",
@@ -111,6 +114,46 @@ def _format_subgroup_label(value: object) -> str:
     return text
 
 
+def _find_metric_value(df: pd.DataFrame, metric: str, *, field: str = "mean") -> float | None:
+    if not isinstance(df, pd.DataFrame) or df.empty:
+        return None
+    rows = df[df["metric"] == metric]
+    if rows.empty or field not in rows.columns:
+        return None
+    value = pd.to_numeric(rows.iloc[0][field], errors="coerce")
+    if pd.isna(value):
+        return None
+    return float(value)
+
+
+def _m5_delta_vs_m4_pp(table4: pd.DataFrame, m5_summary: dict[str, object]) -> float | None:
+    if not isinstance(table4, pd.DataFrame) or table4.empty or not isinstance(m5_summary, dict) or not m5_summary:
+        return None
+    m4_row = table4[table4["Model"].astype(str).str.contains("Multimodal Fusion", case=False, na=False)]
+    if m4_row.empty:
+        return None
+    m4_pauc = pd.to_numeric(m4_row.iloc[0]["pAUC_mean"], errors="coerce")
+    m5_pauc = pd.to_numeric(m5_summary.get("pauc_tpr80_pct"), errors="coerce")
+    if pd.isna(m4_pauc) or pd.isna(m5_pauc):
+        return None
+    return float(m5_pauc) - float(m4_pauc) * 100.0
+
+
+def _with_bacc(df: pd.DataFrame) -> pd.DataFrame:
+    if not isinstance(df, pd.DataFrame) or df.empty:
+        return df
+    metrics = set(df["metric"].astype(str).tolist()) if "metric" in df.columns else set()
+    if "bacc" in metrics:
+        return df
+    sens = _find_metric_value(df, "sensitivity")
+    spec = _find_metric_value(df, "specificity")
+    if sens is None or spec is None:
+        return df
+    out = df.copy()
+    out.loc[len(out)] = {"metric": "bacc", "mean": (sens + spec) / 2.0, "std": None}
+    return out
+
+
 def _render_ml_pipeline(figures: dict[str, Path]) -> None:
     if "ml_pipeline_png" not in figures:
         return
@@ -128,9 +171,11 @@ def _load_all_data() -> dict[str, object]:
         "split_stats": load_split_stats(ROOT),
         "m5_summary": load_m5_summary(ROOT),
         "sample_models": load_all_sample_models(ROOT),
+        "sample_manifest": load_sample_manifest(ROOT),
         "fairness": load_fairness(ROOT),
         "graph_ablation": load_graph_ablation(ROOT),
         "pad_adaptation": load_pad_adaptation(ROOT),
+        "pad_domain": load_pad_domain_comparison(ROOT),
         "figures": figure_paths(ROOT),
     }
 
@@ -138,9 +183,9 @@ def _load_all_data() -> dict[str, object]:
 def _render_key_story_cards(data: dict[str, object]) -> None:
     table4 = data["table4"]
     m5 = data["m5_summary"]
-    pad = data["pad_adaptation"]
+    pad_domain = data.get("pad_domain", {})
+    pad_zeroshot = pad_domain.get("zeroshot") if isinstance(pad_domain, dict) else pd.DataFrame()
 
-    baseline_pauc = None
     best_name = "N/A"
     best_pauc = None
     if isinstance(table4, pd.DataFrame) and not table4.empty:
@@ -149,22 +194,16 @@ def _render_key_story_cards(data: dict[str, object]) -> None:
             idx = candidates["pAUC_mean"].idxmax()
             best_name = str(candidates.loc[idx, "Model"])
             best_pauc = float(candidates.loc[idx, "pAUC_mean"])
-        m0_row = table4[table4["Model"].astype(str).str.contains("LightGBM", case=False, na=False)]
-        if not m0_row.empty:
-            baseline_pauc = float(m0_row.iloc[0]["pAUC_mean"])
 
-    m5_pauc = float(m5.get("pauc_tpr80_pct", 0.0)) / 100 if isinstance(m5, dict) and m5 else None
-    pad_auroc = None
-    if isinstance(pad, pd.DataFrame) and not pad.empty:
-        auroc_rows = pad[pad["metric"] == "auroc"]
-        if not auroc_rows.empty:
-            pad_auroc = float(auroc_rows.iloc[0]["mean"])
+    delta_pp = _m5_delta_vs_m4_pp(table4, m5)
+    pad_auroc = _find_metric_value(pad_zeroshot, "auroc")
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("M0–M4 最佳 pAUC 模型", best_name)
     c2.metric("M0–M4 最佳 pAUC", _to_pct(best_pauc))
-    c3.metric("M5 相对 M0 pAUC 提升", _pct_delta(m5_pauc, baseline_pauc))
-    c4.metric("PAD 外部验证 AUROC", _to_pct(pad_auroc))
+    c3.metric("M5 相对 M4 pAUC 提升", f"{delta_pp:.2f}pp" if delta_pp is not None else "N/A")
+    c4.metric("PAD zero-shot AUROC", _to_pct(pad_auroc))
+    st.caption("zero-shot 结果沿用 ISIC validation 阈值/校准，未在 PAD 上重拟合。")
 
 
 def _render_split_summary(split_stats: pd.DataFrame) -> None:
@@ -317,6 +356,15 @@ def _render_model_results(data: dict[str, object]) -> None:
                 title=f"{chosen_metric_label} 折间变化（%）",
             )
             st.plotly_chart(fold_fig, use_container_width=True)
+        m5_rows = main_results[main_results["model_name"] == "m5_lgke_gnn"].copy()
+        if not m5_rows.empty:
+            m5_rows["pauc_tpr80"] = pd.to_numeric(m5_rows["pauc_tpr80"], errors="coerce")
+            m5_rows = m5_rows.dropna(subset=["pauc_tpr80"])
+            if not m5_rows.empty:
+                best_idx = m5_rows["pauc_tpr80"].idxmax()
+                best_fold = int(m5_rows.loc[best_idx, "fold"])
+                best_pauc = float(m5_rows.loc[best_idx, "pauc_tpr80"]) * 100
+                st.caption(f"M5 五折 pAUC 最高：fold {best_fold}（{best_pauc:.2f}%）。")
 
     if "main_results_forest" in figures:
         st.image(str(figures["main_results_forest"]), caption="主结果森林图")
@@ -324,6 +372,10 @@ def _render_model_results(data: dict[str, object]) -> None:
 
 def _render_sample_inspection(data: dict[str, object]) -> None:
     sample_models = data["sample_models"]
+    sample_manifest = data.get("sample_manifest", {})
+    featured_sample_id = (
+        str(sample_manifest.get("featured_sample_id")).strip() if isinstance(sample_manifest, dict) else ""
+    )
     st.subheader("样本分数查看（多模型预测抽查）")
     if not isinstance(sample_models, dict) or not sample_models:
         st.warning("暂无样本预测数据。")
@@ -375,7 +427,9 @@ def _render_sample_inspection(data: dict[str, object]) -> None:
     if not sample_options:
         st.warning("当前筛选条件下没有可选样本。")
         return
-    sample_id = st.selectbox("选择样本 ID", sample_options, key="sample_view_id")
+    featured_in_scope = featured_sample_id if featured_sample_id in sample_options else ""
+    default_sample_index = sample_options.index(featured_in_scope) if featured_in_scope else 0
+    sample_id = st.selectbox("选择样本 ID", sample_options, index=default_sample_index, key="sample_view_id")
 
     row = current_df[current_df["sample_id"] == sample_id].iloc[0]
     score = float(row["score"])
@@ -453,7 +507,13 @@ def _render_sample_inspection(data: dict[str, object]) -> None:
 def _render_fairness_and_graph(data: dict[str, object]) -> None:
     fairness = data["fairness"]
     ablation = data["graph_ablation"]
-    pad = data["pad_adaptation"]
+    pad_domain = data.get("pad_domain", {})
+    pad_zeroshot = pad_domain.get("zeroshot") if isinstance(pad_domain, dict) else pd.DataFrame()
+    pad_finetune = pad_domain.get("finetune") if isinstance(pad_domain, dict) else pd.DataFrame()
+    if not isinstance(pad_finetune, pd.DataFrame) or pad_finetune.empty:
+        pad_finetune = data.get("pad_adaptation", pd.DataFrame())
+    if isinstance(pad_finetune, pd.DataFrame):
+        pad_finetune = _with_bacc(pad_finetune)
     figures = data["figures"]
 
     st.subheader("公平性与图结构")
@@ -461,7 +521,9 @@ def _render_fairness_and_graph(data: dict[str, object]) -> None:
     st.markdown("### ISIC 子群公平性")
     if isinstance(fairness, pd.DataFrame) and not fairness.empty:
         group_options = fairness["group_variable"].unique().tolist()
-        group = st.selectbox("分组变量", group_options)
+        default_group = "性别" if "性别" in group_options else group_options[0]
+        default_index = group_options.index(default_group)
+        group = st.selectbox("分组变量", group_options, index=default_index)
         sub = fairness[fairness["group_variable"] == group].copy()
         for col in ["auroc", "sensitivity", "fnr"]:
             sub[col] = (pd.to_numeric(sub[col], errors="coerce") * 100).round(2)
@@ -552,26 +614,51 @@ def _render_fairness_and_graph(data: dict[str, object]) -> None:
     if "graph_ablation" in figures:
         st.image(str(figures["graph_ablation"]), caption="图结构消融图")
 
-    st.markdown("### PAD 外部域迁移（含目标域适配）")
-    if isinstance(pad, pd.DataFrame) and not pad.empty:
-        pad_show = pad.copy()
-        pad_show["mean_pct"] = (pad_show["mean"] * 100).round(2)
-        pad_show["std_pct"] = (pad_show["std"] * 100).round(2)
-        pad_display = pad_show[["metric", "mean_pct", "std_pct"]].copy()
-        pad_display["metric"] = pad_display["metric"].map(lambda m: PAD_METRIC_LABELS.get(m, m))
-        pad_display = pad_display.rename(
-            columns={"metric": "指标", "mean_pct": "均值 (%)", "std_pct": "标准差 (%)"}
-        )
-        st.dataframe(pad_display, use_container_width=True, hide_index=True)
-
-        focus_metrics = ["auroc", "auprc", "sensitivity", "specificity", "fnr", "ece"]
-        pad_plot = pad_show[pad_show["metric"].isin(focus_metrics)].copy()
-        if not pad_plot.empty:
-            pad_plot["metric_label"] = pad_plot["metric"].map(lambda m: PAD_METRIC_LABELS.get(m, m))
-            pad_fig = px.bar(pad_plot, x="metric_label", y="mean_pct", title="PAD 外部验证 · 关键指标（%）")
-            st.plotly_chart(pad_fig, use_container_width=True)
-    else:
+    st.markdown("### PAD 外部域迁移（zero-shot vs fine-tune）")
+    if not isinstance(pad_zeroshot, pd.DataFrame) or pad_zeroshot.empty:
+        st.warning("暂无 PAD zero-shot 数据。")
+    if not isinstance(pad_finetune, pd.DataFrame) or pad_finetune.empty:
         st.warning("暂无 PAD 外部验证数据。")
+    if isinstance(pad_zeroshot, pd.DataFrame) and not pad_zeroshot.empty and isinstance(pad_finetune, pd.DataFrame) and not pad_finetune.empty:
+        left, right = st.columns(2)
+        with left:
+            st.markdown("#### ISIC→PAD zero-shot")
+            c1, c2 = st.columns(2)
+            c1.metric("AUROC", _to_pct(_find_metric_value(pad_zeroshot, "auroc")))
+            c2.metric("BACC", _to_pct(_find_metric_value(pad_zeroshot, "bacc")))
+            c3, c4 = st.columns(2)
+            c3.metric("Sensitivity", _to_pct(_find_metric_value(pad_zeroshot, "sensitivity")))
+            c4.metric("FNR", _to_pct(_find_metric_value(pad_zeroshot, "fnr")))
+            st.caption("零样本阶段不在 PAD 上重新训练，也不在 PAD 重新拟合阈值/校准。")
+        with right:
+            st.markdown("#### PAD 目标域 fine-tune")
+            c1, c2 = st.columns(2)
+            c1.metric("AUROC", _to_pct(_find_metric_value(pad_finetune, "auroc")))
+            c2.metric("BACC", _to_pct(_find_metric_value(pad_finetune, "bacc")))
+            c3, c4 = st.columns(2)
+            c3.metric("Sensitivity", _to_pct(_find_metric_value(pad_finetune, "sensitivity")))
+            c4.metric("FNR", _to_pct(_find_metric_value(pad_finetune, "fnr")))
+            st.caption("目标域微调使用 PAD train/val，PAD test 仅用于最终报告。")
+
+        focus_metrics = ["auroc", "auprc", "bacc", "sensitivity", "specificity", "fnr", "ece"]
+        zero_plot = pad_zeroshot[pad_zeroshot["metric"].isin(focus_metrics)].copy()
+        ft_plot = pad_finetune[pad_finetune["metric"].isin(focus_metrics)].copy()
+        zero_plot["stage"] = "zero-shot"
+        ft_plot["stage"] = "fine-tune"
+        compare_plot = pd.concat([zero_plot, ft_plot], ignore_index=True)
+        compare_plot["mean_pct"] = pd.to_numeric(compare_plot["mean"], errors="coerce") * 100
+        compare_plot = compare_plot.dropna(subset=["mean_pct"])
+        if not compare_plot.empty:
+            compare_plot["metric_label"] = compare_plot["metric"].map(lambda m: PAD_METRIC_LABELS.get(m, m))
+            pad_fig = px.bar(
+                compare_plot,
+                x="metric_label",
+                y="mean_pct",
+                color="stage",
+                barmode="group",
+                title="PAD 指标对比（zero-shot vs fine-tune）",
+            )
+            st.plotly_chart(pad_fig, use_container_width=True)
 
     if "pad_domain_shift" in figures:
         st.image(str(figures["pad_domain_shift"]), caption="PAD 域迁移结果图")

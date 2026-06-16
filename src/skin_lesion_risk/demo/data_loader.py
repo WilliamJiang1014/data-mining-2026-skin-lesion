@@ -197,6 +197,26 @@ def load_pad_adaptation(root: Path) -> pd.DataFrame:
     return df
 
 
+def load_pad_zeroshot(root: Path) -> pd.DataFrame:
+    df = _safe_read_csv(root / "demo/assets/pad_zeroshot_summary.csv")
+    if df.empty:
+        return df
+    for col in ("mean", "std"):
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df
+
+
+def load_pad_finetune(root: Path) -> pd.DataFrame:
+    return load_pad_adaptation(root)
+
+
+def load_pad_domain_comparison(root: Path) -> dict[str, pd.DataFrame]:
+    return {
+        "zeroshot": load_pad_zeroshot(root),
+        "finetune": load_pad_finetune(root),
+    }
+
+
 def figure_paths(root: Path) -> dict[str, Path]:
     base = root / "demo/assets/figures"
     names = {

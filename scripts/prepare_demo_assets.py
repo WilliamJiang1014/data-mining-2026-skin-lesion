@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,7 @@ MODEL_SPECS = [
     ("m4_multimodal_fusion", "M4 多模态融合"),
     ("m5_lgke_gnn", "M5 LGKE-GNN"),
 ]
+PM_PATTERN = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*(?:±|\+/-)\s*([0-9]+(?:\.[0-9]+)?)\s*$")
 
 
 def _safe_relative(path: Path, root: Path | None) -> str:
@@ -162,6 +164,124 @@ def parse_fairness_table(md_path: Path) -> list[dict[str, str]]:
     return rows
 
 
+def parse_pm_token(value: str) -> tuple[float, float] | None:
+    match = PM_PATTERN.match(value.strip())
+    if not match:
+        return None
+    return float(match.group(1)), float(match.group(2))
+
+
+def _find_markdown_row(lines: list[str], prefix: str) -> list[str] | None:
+    for raw in lines:
+        line = raw.strip()
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if cells and cells[0] == prefix:
+            return cells
+    return None
+
+
+def parse_pad_zeroshot_metrics(md_path: Path) -> dict[str, tuple[float, float]]:
+    text = md_path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    main_row = _find_markdown_row(lines, "ISIC 训练，PAD 测试")
+    detail_row = _find_markdown_row(lines, "ISIC fold 模型 -> PAD")
+    if main_row is None or detail_row is None:
+        raise ValueError("PAD zero-shot rows not found in markdown table")
+
+    mapping = {
+        "auprc": parse_pm_token(main_row[1]),
+        "auroc": parse_pm_token(main_row[2]),
+        "bacc": parse_pm_token(main_row[3]),
+        "pauc_tpr80": parse_pm_token(detail_row[1]),
+        "sensitivity": parse_pm_token(detail_row[2]),
+        "specificity": parse_pm_token(detail_row[3]),
+        "fnr": parse_pm_token(detail_row[4]),
+        "brier": parse_pm_token(detail_row[5]),
+        "ece": parse_pm_token(detail_row[6]),
+    }
+    missing = [k for k, v in mapping.items() if v is None]
+    if missing:
+        raise ValueError(f"PAD zero-shot metrics parse failed: missing {missing}")
+    return {k: v for k, v in mapping.items() if v is not None}
+
+
+def parse_pad_finetune_bacc(md_path: Path) -> tuple[float, float] | None:
+    lines = md_path.read_text(encoding="utf-8").splitlines()
+    row = _find_markdown_row(lines, "ISIC 预训练 + PAD-only fine-tune，PAD 测试")
+    if row is None:
+        return None
+    return parse_pm_token(row[3])
+
+
+def write_metric_summary_csv(metrics: dict[str, tuple[float, float]], dst: Path) -> None:
+    order = [
+        "pauc_tpr80",
+        "auprc",
+        "auroc",
+        "sensitivity",
+        "specificity",
+        "fnr",
+        "brier",
+        "ece",
+        "bacc",
+    ]
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    with dst.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["metric", "mean", "std"])
+        for key in order:
+            if key not in metrics:
+                continue
+            mean, std = metrics[key]
+            writer.writerow([key, mean, std])
+
+
+def find_pad_external_summary(bundle: Path) -> Path | None:
+    direct = (
+        bundle
+        / "data/artifacts/trained_models/hparam_sweeps/hidden128_lr2e4_do02/external_pad/pad_external_summary.csv"
+    )
+    if direct.exists():
+        return direct
+    matches = sorted(bundle.glob("**/external_pad/pad_external_summary.csv"))
+    return matches[0] if matches else None
+
+
+def ensure_bacc_row(csv_path: Path, *, bacc_from_md: tuple[float, float] | None = None) -> bool:
+    if not csv_path.exists():
+        return False
+    with csv_path.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    if not rows:
+        return False
+    if any(str(row.get("metric", "")).strip() == "bacc" for row in rows):
+        return False
+
+    if bacc_from_md is not None:
+        mean_value, std_value = bacc_from_md
+    else:
+        sens_row = next((r for r in rows if str(r.get("metric", "")).strip() == "sensitivity"), None)
+        spec_row = next((r for r in rows if str(r.get("metric", "")).strip() == "specificity"), None)
+        if sens_row is None or spec_row is None:
+            return False
+        try:
+            sens_mean = float(str(sens_row.get("mean", "")).strip())
+            spec_mean = float(str(spec_row.get("mean", "")).strip())
+            sens_std = float(str(sens_row.get("std", "")).strip())
+            spec_std = float(str(spec_row.get("std", "")).strip())
+        except ValueError:
+            return False
+        mean_value = (sens_mean + spec_mean) / 2.0
+        std_value = (sens_std + spec_std) / 2.0
+
+    with csv_path.open("a", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["bacc", f"{mean_value:.10g}", f"{std_value:.10g}"])
+    return True
+
+
 def write_fairness_csv(rows: list[dict[str, str]], dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
@@ -216,6 +336,7 @@ def write_manifest(
     sample_size: int,
     sample_seed: int,
     models: list[dict[str, Any]],
+    featured_sample_id: str | None = None,
 ) -> None:
     payload = {
         "fold": 0,
@@ -223,6 +344,8 @@ def write_manifest(
         "sample_seed": sample_seed,
         "models": models,
     }
+    if featured_sample_id:
+        payload["featured_sample_id"] = featured_sample_id
     out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
@@ -308,6 +431,7 @@ def main() -> None:
             break
 
     exported_models: list[dict[str, str]] = []
+    featured_sample_id = ""
     if base_key is None:
         log.append("WARN: no available prediction source for sample extraction")
     else:
@@ -352,6 +476,19 @@ def main() -> None:
             log.append(f"WARN: dropped {len(dropped_ids)} IDs due to missing/mismatch labels")
         log.append(f"OK: final aligned sample size {len(final_ref)}")
 
+        m5_frame = model_frames.get("m5_lgke_gnn")
+        if m5_frame is not None:
+            m5_join = final_ref.merge(
+                m5_frame[["sample_id", "score"]],
+                on="sample_id",
+                how="inner",
+            )
+            m5_pos = m5_join[m5_join["label"] == 1]
+            if not m5_pos.empty:
+                m5_pos = m5_pos.sort_values("score", ascending=False)
+                featured_sample_id = str(m5_pos.iloc[0]["sample_id"])
+                log.append(f"OK: featured_sample_id={featured_sample_id}")
+
         for key, label in MODEL_SPECS:
             frame = model_frames.get(key)
             if frame is None:
@@ -390,6 +527,7 @@ def main() -> None:
             sample_size=min(args.sample_size, len(pd.read_csv(out / exported_models[0]["predictions"]))),
             sample_seed=args.seed,
             models=exported_models,
+            featured_sample_id=featured_sample_id or None,
         )
         log.append("OK: sample_predictions_manifest.json")
     else:
@@ -411,6 +549,10 @@ def main() -> None:
         if copy_if_exists(ablation_src, out / "graph_ablation_summary.csv"):
             log.append("OK: graph_ablation_summary.csv")
 
+        zero_shot_src = find_pad_external_summary(bundle)
+        if zero_shot_src is not None and copy_if_exists(zero_shot_src, out / "pad_zeroshot_summary.csv"):
+            log.append(f"OK: pad_zeroshot_summary.csv from {_safe_relative(zero_shot_src, bundle)}")
+
         pad_src = (
             bundle
             / "data/artifacts/trained_models/pad_domain_adaptation/pad_only_finetune_hd128_lr1e4/pad_adaptation_summary.csv"
@@ -418,16 +560,30 @@ def main() -> None:
         if copy_if_exists(pad_src, out / "pad_adaptation_summary.csv"):
             log.append("OK: pad_adaptation_summary.csv")
 
-        fairness_md = bundle / "reports/m5_experiment_tables_filled.md"
-        if fairness_md.exists():
+        report_md = bundle / "reports/m5_experiment_tables_filled.md"
+        if report_md.exists():
+            finetune_bacc = parse_pad_finetune_bacc(report_md)
+            if finetune_bacc is not None and ensure_bacc_row(
+                out / "pad_adaptation_summary.csv", bacc_from_md=finetune_bacc
+            ):
+                log.append("OK: pad_adaptation_summary.csv appended bacc from 表6 markdown")
+            if not (out / "pad_zeroshot_summary.csv").exists():
+                try:
+                    zero_shot_metrics = parse_pad_zeroshot_metrics(report_md)
+                    write_metric_summary_csv(zero_shot_metrics, out / "pad_zeroshot_summary.csv")
+                    log.append("OK: pad_zeroshot_summary.csv parsed from 表6 markdown")
+                except ValueError as exc:
+                    log.append(f"WARN: pad zero-shot parse failed: {exc}")
             try:
-                rows = parse_fairness_table(fairness_md)
+                rows = parse_fairness_table(report_md)
                 write_fairness_csv(rows, out / "fairness_subgroup.csv")
                 log.append(f"OK: fairness_subgroup.csv ({len(rows)} rows)")
             except ValueError as exc:
                 log.append(f"WARN: fairness parse failed: {exc}")
         else:
-            log.append("WARN: fairness markdown not found")
+            log.append("WARN: m5_experiment_tables_filled.md not found")
+            if ensure_bacc_row(out / "pad_adaptation_summary.csv"):
+                log.append("OK: pad_adaptation_summary.csv appended derived bacc")
 
         fig_root = bundle / "数据挖掘项目/fig"
         for item in FIGURES:
